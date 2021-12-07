@@ -7,6 +7,7 @@ authors = ["maxenceroux <maxence.roux@ornikar.com>"]
 [tool.poetry.dependencies]
 python = "^3.7"
 requests = "^2.26.0"
+pydantic = "^1.8.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
@@ -14,6 +15,7 @@ pre-commit = "^2.16.0"
 flake8 = "^4.0.1"
 pytest-cov = "^3.0.0"
 black = {version = "^21.12b0", allow-prereleases = true}
+mypy = "^0.910"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
