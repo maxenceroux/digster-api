@@ -8,6 +8,7 @@ authors = ["maxenceroux <maxence.roux@ornikar.com>"]
 python = "^3.7"
 requests = "^2.26.0"
 pydantic = "^1.8.2"
+fastapi = {extras = ["all"], version = "^0.70.0"}
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
