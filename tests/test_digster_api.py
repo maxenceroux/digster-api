@@ -242,3 +242,98 @@ def test_spotify_get_current_play_failure(
     with pytest.raises(SystemExit) as excinfo:
         spotify_client.get_current_play(token=token)
     assert "<ExceptionInfo" in str(excinfo)
+
+
+def test_spotify_get_user_info_success(
+    monkeypatch,
+):
+    spotify_client = SpotifyController(
+        client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
+        client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
+    )
+    scrapper = SeleniumScrapper(
+        spotify_user=os.environ.get("SPOTIFY_USER"),
+        spotify_password=os.environ.get("SPOTIFY_PWD"),
+        chromedriver="local",
+    )
+    token = scrapper.get_token()
+
+    class MockResponse(object):
+        def __init__(self):
+            self.status_code = 200
+            self.url = "http://httpbin.org/get"
+            self.headers = {"blaa": "1234"}
+
+        def json(self):
+            return {
+                "country": "FR",
+                "display_name": "Raxence Moux",
+                "email": "maxence.b.roux@gmail.com",
+                "explicit_content": {
+                    "filter_enabled": False,
+                    "filter_locked": False,
+                },
+                "external_urls": {
+                    "spotify": "https://open.spotify.com/user/1138415959"
+                },
+                "followers": {"href": None, "total": 49},
+                "href": "https://api.spotify.com/v1/users/1138415959",
+                "id": "1138415959",
+                "images": [
+                    {
+                        "height": None,
+                        "url": "https://test_url",
+                        "width": None,
+                    }
+                ],
+                "product": "premium",
+                "type": "user",
+                "uri": "spotify:user:1138415959",
+            }
+
+        def raise_for_status(self):
+            pass
+
+    def mock_get(url, headers):
+        return MockResponse()
+
+    monkeypatch.setattr(requests, "get", mock_get)
+    assert spotify_client.get_user_info(token=token) == {
+        "id": 1138415959,
+        "display_name": "Raxence Moux",
+        "email": "maxence.b.roux@gmail.com",
+        "country": "FR",
+        "image_url": "https://test_url",
+    }
+
+
+def test_spotify_get_user_info_failure(
+    monkeypatch,
+):
+    spotify_client = SpotifyController(
+        client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
+        client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
+    )
+    scrapper = SeleniumScrapper(
+        spotify_user=os.environ.get("SPOTIFY_USER"),
+        spotify_password=os.environ.get("SPOTIFY_PWD"),
+        chromedriver="local",
+    )
+    token = scrapper.get_token()
+
+    class MockResponse(object):
+        def __init__(self):
+            self.status_code = 200
+            self.url = "http://httpbin.org/get"
+            self.headers = {"blaa": "1234"}
+
+        def raise_for_status(self):
+            raise SystemExit()
+
+    def mock_get(url, headers):
+        return MockResponse()
+
+    monkeypatch.setattr(requests, "get", mock_get)
+    with pytest.raises(SystemExit) as excinfo:
+        spotify_client.get_user_info(token=token)
+    assert "<ExceptionInfo" in str(excinfo)
