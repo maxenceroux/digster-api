@@ -1,3 +1,5 @@
+from typing import Dict
+
 import requests
 from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
@@ -27,15 +29,22 @@ class SpotifyController:
             raise SystemExit(err)
         return response.json().get("access_token")
 
-    # def get_current_play(self, token):
-    #     url = f"{self._base_url}/v1/me/player"
-    #     headers = {
-    #         "Accept": "application/json",
-    #         "Content-Type": "application/json",
-    #         "Authorization": f"Bearer {token}",
-    #     }
-    #     response = requests.request("GET", url, headers=headers)
-    #     return response.text
+    def get_current_play(self, token: str) -> Dict[str, str]:
+        url = f"{self._base_url}/v1/me/player"
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        }
+        try:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            raise SystemExit(err)
+        current_play = {}
+        current_play["timestamp"] = response.json().get("timestamp")
+        current_play["song_id"] = response.json().get("item").get("id")
+        return current_play
 
     # def get_user_recently_played(self, token, after):
     #     url = f"""https://api.spotify.com/v1/me/player/recently-played?

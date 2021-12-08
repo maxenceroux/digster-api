@@ -15,5 +15,5 @@ spotify_client_secret = str(os.environ.get("SPOTIFY_CLIENT_SECRET"))
 spotify_client = SpotifyController(
     client_id=spotify_client_id, client_secret=spotify_client_secret
 )
-# print(len(spotify_client.get_unauth_token()))
+print(spotify_client.get_current_play("bds"))
 # print(spotify_client.get_current_play(token))
