@@ -1,4 +1,5 @@
-from typing import Any, Dict
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 import requests
 from dotenv import load_dotenv
@@ -43,7 +44,7 @@ class SpotifyController:
             raise SystemExit(err)
         current_play = {}
         current_play["timestamp"] = response.json().get("timestamp")
-        current_play["song_id"] = response.json().get("item").get("id")
+        current_play["track_id"] = response.json().get("item").get("id")
         return current_play
 
     def get_user_info(self, token: str) -> Dict[str, Any]:
@@ -66,25 +67,74 @@ class SpotifyController:
         current_user["image_url"] = response.json().get("images")[0].get("url")
         return current_user
 
-    # def get_user_recently_played(self, token, after):
-    #     url = f"""https://api.spotify.com/v1/me/player/recently-played?
-    #         &after={after}"""
-    #     headers = {
-    #         "Accept": "application/json",
-    #         "Content-Type": "application/json",
-    #         "Authorization": f"Bearer {token}",
-    #     }
-    #     response = requests.request("GET", url, headers=headers)
-    #     if "items" not in response.json():
-    #         return False
-    #     songs = response.json()["items"]
-    #     if len(songs) == 0:
-    #         return False
-    #     ts_li, spotify_li = [], []
-    #     for song in songs:
-    #         ts_li.append(song["played_at"])
-    #         spotify_li.append(song["track"]["id"])
-    #     songs_json = [
-    #         {"ts": t, "spotify_id": sp} for t, sp in zip(ts_li, spotify_li)
-    #     ]
-    #     return songs_json
+    def get_recently_played(
+        self,
+        token: str,
+        url: Optional[str] = None,
+        after: Optional[int] = None,
+        limit: Optional[int] = 10,
+    ) -> Dict[str, Any]:
+        if not url:
+            url = f"""{self._base_url}/v1/me/player/recently-played?
+                limit={limit}&after={after}"""
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        }
+        try:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            raise SystemExit(err)
+        if not response.json().get("items"):
+            return {"message": f"no tracks played after {after}"}
+        recently_played_tracks = []
+        results = {}
+        results["next_url"] = response.json().get("next")
+        for track in response.json().get("items"):
+            recently_played_tracks.append(
+                {
+                    "timestamp": int(
+                        datetime.timestamp(
+                            datetime.fromisoformat(track.get("played_at")[:-1])
+                        )
+                        * 1000
+                    ),
+                    "track_id": track.get("track").get("id"),
+                }
+            )
+        results["recently_played"] = recently_played_tracks
+        return results
+
+    def get_tracks_info(
+        self, token: str, track_ids: List[str]
+    ) -> Dict[str, Any]:
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        }
+        params = {"ids": ",".join(track_ids)}
+        url = f"{self._base_url}/v1/tracks"
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            raise SystemExit(err)
+        if not response.json().get("tracks"):
+            return {"message": "IDs corresponding to no tracks"}
+        results = {}
+        tracks_info = []
+        for track in response.json().get("tracks"):
+            tracks_info.append(
+                {
+                    "id": track.get("id"),
+                    "name": track.get("name"),
+                    "duration_ms": track.get("duration_ms"),
+                    "popularity": track.get("popularity"),
+                    "album_id": track.get("album").get("id"),
+                }
+            )
+        results["tracks_info"] = tracks_info
+        return results
