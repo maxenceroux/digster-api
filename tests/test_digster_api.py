@@ -419,9 +419,7 @@ def test_spotify_get_recently_played_success(
     assert spotify_client.get_recently_played(
         token="test-token", after=1639037115000, limit=1
     ) == {
-        "next_url": (
-            "https://mock/recently-played?before=1639037115499&limit=1"
-        ),
+        "next_url": "https://mock/recently-played?imit=1",
         "recently_played": [
             {"timestamp": 1639033515499, "track_id": "1RhL5PGWaiYXwVmqOpj0Nm"}
         ],
@@ -723,7 +721,7 @@ def test_spotify_get_tracks_info_no_items(
 
         def json(self):
             return {
-                "tracks": [],
+                "audio_features": [],
                 "next": (
                     "https://mock/recently-played?before=1639037115499&limit=1"
                 ),
@@ -741,5 +739,179 @@ def test_spotify_get_tracks_info_no_items(
     tracks_info = spotify_client.get_tracks_info(
         token="test-token",
         track_ids=["4bqCS9VUNFsllHX", "3xRiTUZdmkH3y2aG6G"],
+    )
+    assert tracks_info == {"message": "IDs corresponding to no tracks"}
+
+
+def test_spotify_get_tracks_attributes_success(
+    monkeypatch,
+):
+    spotify_client = SpotifyController(
+        client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
+        client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
+    )
+
+    class MockResponse(object):
+        def __init__(self):
+            self.status_code = 200
+            self.url = "http://httpbin.org/get"
+            self.headers = {"blaa": "1234"}
+            self.params = {"bla": 123}
+
+        def json(self):
+            return {
+                "audio_features": [
+                    {
+                        "danceability": 0.606,
+                        "energy": 0.295,
+                        "key": 4,
+                        "loudness": -13.721,
+                        "mode": 0,
+                        "speechiness": 0.0345,
+                        "acousticness": 0.867,
+                        "instrumentalness": 0.0826,
+                        "liveness": 0.111,
+                        "valence": 0.23,
+                        "tempo": 132.104,
+                        "type": "audio_features",
+                        "id": "4bqCS9VUNFQPW8GJ5sllHX",
+                        "uri": "spotify:track:4bqCS9VUNFQPW8GJ5sllHX",
+                        "duration_ms": 161301,
+                        "time_signature": 4,
+                    },
+                    {
+                        "danceability": 0.631,
+                        "energy": 0.446,
+                        "key": 11,
+                        "loudness": -10.702,
+                        "mode": 0,
+                        "speechiness": 0.0245,
+                        "acousticness": 0.794,
+                        "instrumentalness": 0.741,
+                        "liveness": 0.109,
+                        "valence": 0.353,
+                        "tempo": 140.016,
+                        "type": "audio_features",
+                        "id": "3xRiTUZdmkH3HyEXy2aG6G",
+                        "uri": "spotify:track:3xRiTUZdmkH3HyEXy2aG6G",
+                        "duration_ms": 402000,
+                        "time_signature": 4,
+                    },
+                ]
+            }
+
+        def raise_for_status(self):
+            pass
+
+    def mock_get(url, headers, params):
+        return MockResponse()
+
+    monkeypatch.setattr(requests, "get", mock_get)
+
+    assert spotify_client.get_tracks_attributes(
+        token="test-token",
+        track_ids=["4bqCS9VUNFQPW8GJ5sllHX", "3xRiTUZdmkH3HyEXy2aG6G"],
+    ) == {
+        "audio_features": [
+            {
+                "id": "4bqCS9VUNFQPW8GJ5sllHX",
+                "danceability": 0.606,
+                "energy": 0.295,
+                "key": 4,
+                "loudness": -13.721,
+                "mode": 0,
+                "speechiness": 0.0345,
+                "acousticness": 0.867,
+                "instrumentalness": 0.0826,
+                "liveness": 0.111,
+                "valence": 0.23,
+                "tempo": 132.104,
+            },
+            {
+                "id": "3xRiTUZdmkH3HyEXy2aG6G",
+                "danceability": 0.631,
+                "energy": 0.446,
+                "key": 11,
+                "loudness": -10.702,
+                "mode": 0,
+                "speechiness": 0.0245,
+                "acousticness": 0.794,
+                "instrumentalness": 0.741,
+                "liveness": 0.109,
+                "valence": 0.353,
+                "tempo": 140.016,
+            },
+        ]
+    }
+
+
+def test_spotify_get_tracks_attributes_failure(
+    monkeypatch,
+):
+    spotify_client = SpotifyController(
+        client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
+        client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
+    )
+
+    class MockResponse(object):
+        def __init__(self):
+            self.status_code = 200
+            self.url = "http://httpbin.org/get"
+            self.headers = {"blaa": "1234"}
+            self.params = {"bla": 123}
+
+        def raise_for_status(self):
+            raise requests.exceptions.HTTPError()
+
+    def mock_get(url, headers, params):
+        return MockResponse()
+
+    monkeypatch.setattr(requests, "get", mock_get)
+    with pytest.raises(SystemExit) as excinfo:
+        spotify_client.get_tracks_attributes(
+            token="test-token",
+            track_ids=["4bqCS9VUNFQPW8GJ5sllHX", "3xRiTUZdmkH3HyEXy2aG6G"],
+        )
+    assert "HTTPError" in str(excinfo)
+
+
+def test_spotify_get_tracks_attributes_no_items(
+    monkeypatch,
+):
+    spotify_client = SpotifyController(
+        client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
+        client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
+    )
+
+    class MockResponse(object):
+        def __init__(self):
+            self.status_code = 200
+            self.url = "http://httpbin.org/get"
+            self.headers = {"blaa": "1234"}
+            self.params = {"bla": 123}
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "audio_features": [],
+                "next": (
+                    "https://mock/recently-played?before=1639037115499&limit=1"
+                ),
+                "cursors": {
+                    "after": "1639037115499",
+                    "before": "1639037115499",
+                },
+                "limit": 1,
+            }
+
+    def mock_get(url, headers, params):
+        return MockResponse()
+
+    monkeypatch.setattr(requests, "get", mock_get)
+    tracks_info = spotify_client.get_tracks_attributes(
+        token="test-token",
+        track_ids=["4bqCS9VUNX", "3xRiTUZdmkH"],
     )
     assert tracks_info == {"message": "IDs corresponding to no tracks"}

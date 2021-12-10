@@ -138,3 +138,42 @@ class SpotifyController:
             )
         results["tracks_info"] = tracks_info
         return results
+
+    def get_tracks_attributes(
+        self, token: str, track_ids: List[str]
+    ) -> Dict[str, Any]:
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        }
+        params = {"ids": ",".join(track_ids)}
+        url = f"{self._base_url}/v1/audio-features"
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            raise SystemExit(err)
+        if not response.json().get("audio_features"):
+            return {"message": "IDs corresponding to no tracks"}
+        results = {}
+        tracks_audio_features = []
+        for track in response.json().get("audio_features"):
+            tracks_audio_features.append(
+                {
+                    "id": track.get("id"),
+                    "danceability": track.get("danceability"),
+                    "energy": track.get("energy"),
+                    "key": track.get("key"),
+                    "loudness": track.get("loudness"),
+                    "mode": track.get("mode"),
+                    "speechiness": track.get("speechiness"),
+                    "acousticness": track.get("acousticness"),
+                    "instrumentalness": track.get("instrumentalness"),
+                    "liveness": track.get("liveness"),
+                    "valence": track.get("valence"),
+                    "tempo": track.get("tempo"),
+                }
+            )
+        results["audio_features"] = tracks_audio_features
+        return results
