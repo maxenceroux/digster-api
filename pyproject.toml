@@ -13,6 +13,10 @@ python-dotenv = "^0.19.2"
 spotipy = "^2.19.0"
 types-requests = "^2.26.1"
 selenium = "^4.1.0"
+psycopg2-binary = "^2.9.2"
+alembic = "^1.7.5"
+SQLAlchemy = {extras = ["mypy"], version = "^1.4.28"}
+sqlalchemy-stubs = "^0.4"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
@@ -58,3 +62,9 @@ include_trailing_comma = true
 force_grid_wrap = 0
 use_parentheses = true
 line_length = 79
+
+[tool.flake8]
+exclude = "digster_api/alembic/env.py"
+
+[mypy]
+exclude = "digster_api/alembic/"

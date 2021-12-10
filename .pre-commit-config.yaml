@@ -20,7 +20,7 @@ repos:
     rev: v0.782
     hooks:
         - id: mypy
-          additional_dependencies: [pydantic]
+          additional_dependencies: [pydantic, sqlalchemy, sqlalchemy-stubs]
 -   repo: https://github.com/PyCQA/isort
     rev: 5.4.2
     hooks:

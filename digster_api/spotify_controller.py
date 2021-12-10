@@ -75,8 +75,16 @@ class SpotifyController:
         limit: Optional[int] = 10,
     ) -> Dict[str, Any]:
         if not url:
-            url = f"""{self._base_url}/v1/me/player/recently-played?
-                limit={limit}&after={after}"""
+            if after:
+                url = (
+                    f"""{self._base_url}/v1/me/player/recently-played"""
+                    f"""?limit={limit}&after={after}"""
+                )
+            else:
+                url = (
+                    f"""{self._base_url}/v1/me/player/recently-played"""
+                    f"""?limit={limit}"""
+                )
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
