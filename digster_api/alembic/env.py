@@ -2,10 +2,11 @@ import os
 import sys
 from logging.config import fileConfig
 
-import models
 from alembic import context
 from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
+
+from digster_api import models
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 print(BASE_DIR)

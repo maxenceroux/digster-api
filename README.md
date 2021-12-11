@@ -1,5 +1,10 @@
 # FastAPI for Digster API
 
+# Activate virtual env
+```sh
+poetry shell
+code .
+```
 # Run
 ## Locally
 ```sh
