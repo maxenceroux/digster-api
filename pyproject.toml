@@ -67,5 +67,6 @@ line_length = 79
 exclude = "digster_api/alembic/env.py"
 
 [tool.mypy]
-plugins = "sqlalchemy.ext.mypy.plugin,sqlmypy"
 exclude = "digster_api/alembic/"
+plugins = "sqlalchemy.ext.mypy.plugin,sqlmypy"
+ignore_missing_imports = true
