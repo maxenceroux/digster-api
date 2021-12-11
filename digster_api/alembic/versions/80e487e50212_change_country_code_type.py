@@ -1,15 +1,15 @@
-"""First migration
+"""change_country_code_type
 
-Revision ID: f67e709b3c53
+Revision ID: 80e487e50212
 Revises:
-Create Date: 2021-12-10 18:36:22.186264
+Create Date: 2021-12-11 14:17:55.929172
 
 """
 import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "f67e709b3c53"
+revision = "80e487e50212"
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -20,9 +20,11 @@ def upgrade():
     op.create_table(
         "users",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("first_name", sa.String(), nullable=True),
-        sa.Column("last_name", sa.String(), nullable=True),
-        sa.Column("age", sa.Integer(), nullable=True),
+        sa.Column("display_name", sa.String(), nullable=True),
+        sa.Column("email", sa.String(), nullable=True),
+        sa.Column("country", sa.String(), nullable=True),
+        sa.Column("image_url", sa.String(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_users_id"), "users", ["id"], unique=False)

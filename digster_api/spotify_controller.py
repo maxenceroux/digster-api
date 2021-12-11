@@ -103,11 +103,8 @@ class SpotifyController:
         for track in response.json().get("items"):
             recently_played_tracks.append(
                 {
-                    "timestamp": int(
-                        datetime.timestamp(
-                            datetime.fromisoformat(track.get("played_at")[:-1])
-                        )
-                        * 1000
+                    "timestamp": datetime.fromisoformat(
+                        track.get("played_at")[:-1]
                     ),
                     "track_id": track.get("track").get("id"),
                 }

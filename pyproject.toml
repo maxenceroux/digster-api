@@ -64,7 +64,11 @@ use_parentheses = true
 line_length = 79
 
 [tool.flake8]
-exclude = "digster_api/alembic/env.py"
+exclude = "digster_api/alembic"
+
+[tool.flakehell]
+exclude = "digster_api/alembic"
+
 
 [tool.mypy]
 exclude = "digster_api/alembic/"
