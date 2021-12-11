@@ -8,13 +8,16 @@ code .
 # Run
 ## Locally
 ```sh
-uvicorn main:app --reload
+make start-local
 ```
 # Test
 ```sh
-pytest --cov=digster_api tests -vv --cov-report html
+make test-local
+```
+## With coverage
+```sh
+make test-cov-local
 ```
 # Migrate
 ```sh
-alembic revision --autogenerate -m <your_commit_message>
-alembic upgrade head
+make migrate-db
