@@ -66,5 +66,6 @@ line_length = 79
 [tool.flake8]
 exclude = "digster_api/alembic/env.py"
 
-[mypy]
+[tool.mypy]
 exclude = "digster_api/alembic/"
+plugins = "sqlalchemy.ext.mypy.plugin,sqlmypy"
