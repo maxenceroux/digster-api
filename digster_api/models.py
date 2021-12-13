@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Float, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.sql.sqltypes import DateTime
+from sqlalchemy.sql.sqltypes import Date, DateTime
 
 Base = declarative_base()
 
@@ -47,3 +47,30 @@ class Track(Base):
     liveness = Column(Float)
     valence = Column(Float)
     tempo = Column(Float)
+
+
+class Album(Base):
+    __tablename__ = "albums"
+    id = Column(Integer, primary_key=True, index=True)
+    spotify_id = Column(String, index=True)
+    artist_id = Column(String, index=True)
+    created_at = Column(DateTime)
+    name = Column(String)
+    genres = Column(String)
+    image_url = Column(String)
+    label = Column(String)
+    popularity = Column(Integer)
+    release_date = Column(Date)
+    total_tracks = Column(Integer)
+
+
+class Artist(Base):
+    __tablename__ = "artists"
+    id = Column(Integer, primary_key=True, index=True)
+    spotify_id = Column(String, index=True)
+    created_at = Column(DateTime)
+    name = Column(String, index=True)
+    genres = Column(String)
+    followers = Column(Integer)
+    popularity = Column(Integer)
+    image_url = Column(String)

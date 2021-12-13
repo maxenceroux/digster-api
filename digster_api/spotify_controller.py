@@ -182,3 +182,72 @@ class SpotifyController:
             )
         results["audio_features"] = tracks_audio_features
         return results
+
+    def get_albums_info(
+        self, token: str, album_ids: List[str]
+    ) -> Dict[str, Any]:
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        }
+        params = {"ids": ",".join(album_ids)}
+        url = f"{self._base_url}/v1/albums"
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            raise SystemExit(err)
+        if not response.json().get("albums"):
+            return {"message": "IDs corresponding to no albums"}
+        results = {}
+        albums = []
+        for album in response.json().get("albums"):
+            albums.append(
+                {
+                    "spotify_id": album.get("id"),
+                    "artist_id": album.get("artists")[0].get("id"),
+                    "genres": " - ".join(album.get("genres")),
+                    "image_url": album.get("images")[0].get("url"),
+                    "label": album.get("label"),
+                    "name": album.get("name"),
+                    "popularity": album.get("popularity"),
+                    "release_date": album.get("release_date"),
+                    "total_tracks": album.get("total_tracks"),
+                }
+            )
+        results["albums"] = albums
+        return results
+
+    def get_artists_info(
+        self, token: str, artist_ids: List[str]
+    ) -> Dict[str, Any]:
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        }
+        params = {"ids": ",".join(artist_ids)}
+        url = f"{self._base_url}/v1/artists"
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            raise SystemExit(err)
+        if not response.json().get("artists"):
+            return {"message": "IDs corresponding to no artists"}
+        results = {}
+        artists = []
+        for artist in response.json().get("artists"):
+            artists.append(
+                {
+                    "spotify_id": artist.get("id"),
+                    "genres": " - ".join(artist.get("genres")),
+                    "image_url": artist.get("images")[0].get("url"),
+                    "name": artist.get("name"),
+                    "followers": artist.get("followers").get("total"),
+                    "popularity": artist.get("popularity"),
+                }
+            )
+        results["artists"] = artists
+        return results
