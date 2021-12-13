@@ -27,3 +27,4 @@ make migrate-db
 - Check post to put endpoints
 - change sql request to extract tracks using timestamp strategy
 - Review typings on `spotify_controller.py`
+- Integration tests
