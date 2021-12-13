@@ -1,5 +1,5 @@
 .DS_Store
-sandbox.py
+*sandbox.py
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

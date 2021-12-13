@@ -43,7 +43,7 @@ class SpotifyController:
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
         current_play = {}
-        current_play["timestamp"] = response.json().get("timestamp")
+        current_play["listened_at"] = response.json().get("timestamp")
         current_play["track_id"] = response.json().get("item").get("id")
         return current_play
 
@@ -103,7 +103,7 @@ class SpotifyController:
         for track in response.json().get("items"):
             recently_played_tracks.append(
                 {
-                    "timestamp": datetime.fromisoformat(
+                    "listened_at": datetime.fromisoformat(
                         track.get("played_at")[:-1]
                     ),
                     "track_id": track.get("track").get("id"),
@@ -134,7 +134,7 @@ class SpotifyController:
         for track in response.json().get("tracks"):
             tracks_info.append(
                 {
-                    "id": track.get("id"),
+                    "spotify_id": track.get("id"),
                     "name": track.get("name"),
                     "duration_ms": track.get("duration_ms"),
                     "popularity": track.get("popularity"),
@@ -166,7 +166,7 @@ class SpotifyController:
         for track in response.json().get("audio_features"):
             tracks_audio_features.append(
                 {
-                    "id": track.get("id"),
+                    "spotify_id": track.get("id"),
                     "danceability": track.get("danceability"),
                     "energy": track.get("energy"),
                     "key": track.get("key"),
