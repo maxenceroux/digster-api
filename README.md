@@ -28,3 +28,4 @@ make migrate-db
 - change sql request to extract tracks using timestamp strategy
 - Review typings on `spotify_controller.py`
 - Integration tests
+- [multiple environments compose files: dev - ci - prod](https://docs.docker.com/compose/extends/#different-environments)
