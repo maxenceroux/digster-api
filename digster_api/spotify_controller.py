@@ -72,7 +72,7 @@ class SpotifyController:
         token: str,
         url: Optional[str] = None,
         after: Optional[int] = None,
-        limit: Optional[int] = 10,
+        limit: Optional[int] = 50,
     ) -> Dict[str, Any]:
         if not url:
             if after:
@@ -109,6 +109,7 @@ class SpotifyController:
                     "track_id": track.get("track").get("id"),
                 }
             )
+        recently_played_tracks.reverse()
         results["recently_played"] = recently_played_tracks
         return results
 
