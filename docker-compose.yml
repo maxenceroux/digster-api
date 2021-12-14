@@ -1,0 +1,55 @@
+version: '3.7'
+services:
+  chrome:
+    image: selenium/standalone-chrome:latest
+    hostname: chrome
+    ports:
+      - 4444:4444
+
+  web:
+    build:
+      context: .
+    command: ./docker-entrypoint.sh
+    ports:
+      - 8000:8000
+    env_file:
+      - ./digster_api/prod.env
+    depends_on:
+      - chrome
+      - initdb
+
+  initdb:
+    build:
+      context: .
+    depends_on:
+      - postgres
+    command: ./docker-entrypoint-initdb.sh
+
+  postgres:
+    container_name: postgres_digster
+    image: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      PGDATA: /data/postgres
+    volumes:
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres-digster:/data/postgres
+    ports:
+      - "5432:5432"
+
+  pgadmin:
+    container_name: pgadmin_digster
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin-digster:/var/lib/pgadmin
+
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+volumes:
+  postgres-digster: null
+  pgadmin-digster: null
