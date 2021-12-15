@@ -10,3 +10,6 @@ test-cov-local:
 migrate-db:
 	alembic revision --autogenerate -m $(msg)
 	alembic upgrade head
+
+start-dev-docker:
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up

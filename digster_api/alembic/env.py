@@ -10,7 +10,8 @@ from digster_api import models
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 print(BASE_DIR)
-load_dotenv(os.path.join(BASE_DIR, ".env"))
+if not os.environ.get("DOCKER"):
+    load_dotenv(os.path.join(BASE_DIR, ".env"))
 sys.path.append(BASE_DIR)
 
 # this is the Alembic Config object, which provides
