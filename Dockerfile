@@ -25,7 +25,9 @@ FROM base as final
 COPY --from=builder /venv /venv
 COPY Makefile Makefile
 COPY ./digster_api/ ./digster_api/
+COPY ./tests/ ./tests/
 COPY ./alembic.ini ./alembic.ini
 COPY docker-entrypoint.sh  ./
 COPY docker-entrypoint-initdb.sh  ./
-RUN chmod 777 ./docker-entrypoint.sh && chmod 777 ./docker-entrypoint-initdb.sh
+COPY docker-entrypoint-test.sh  ./
+RUN chmod 777 ./docker-entrypoint.sh && chmod 777 ./docker-entrypoint-initdb.sh && chmod 777 ./docker-entrypoint-test.sh

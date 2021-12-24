@@ -2,8 +2,10 @@ version: '3.7'
 services:
 
   web:
+    command: ./docker-entrypoint.sh
     volumes:
       - ./digster_api:/app/digster_api/
+
   pgadmin:
     container_name: pgadmin_digster
     image: dpage/pgadmin4

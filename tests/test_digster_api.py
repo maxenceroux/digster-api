@@ -62,13 +62,13 @@ def test_selenium_scrapper():
     assert scrapper.chromedriver == "local"
 
 
-def test_selenium_get_token():
+def test_selenium_get_spotify_token():
     scrapper = SeleniumScrapper(
         spotify_user=os.environ.get("SPOTIFY_USER"),
         spotify_password=os.environ.get("SPOTIFY_PWD"),
         chromedriver="local",
     )
-    token = scrapper.get_token()
+    token = scrapper.get_spotify_token()
     assert isinstance(token, str)
     assert len(token) == 278
 

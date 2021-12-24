@@ -9,7 +9,6 @@ services:
   web:
     build:
       context: .
-    command: ./docker-entrypoint.sh
     ports:
       - 8000:8000
     env_file:
@@ -21,6 +20,8 @@ services:
   initdb:
     build:
       context: .
+    env_file:
+      - ./digster_api/prod.env
     depends_on:
       - postgres
     command: ./docker-entrypoint-initdb.sh

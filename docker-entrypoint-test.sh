@@ -4,4 +4,5 @@ set -e
 
 . /venv/bin/activate
 
-make start-local
+pip install pytest
+make test-local

@@ -1,5 +1,6 @@
+
 start-local:
-	cd digster_api && uvicorn main:app --reload
+	uvicorn digster_api.main:app --host 0.0.0.0 --port 8000 --reload
 
 test-local:
 	pytest
@@ -13,3 +14,6 @@ migrate-db:
 
 start-dev-docker:
 	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+start-test-docker:
+	docker-compose -f docker-compose.yml -f docker-compose.test.yml up

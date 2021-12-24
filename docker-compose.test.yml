@@ -1,0 +1,7 @@
+version: '3.7'
+services:
+
+  web:
+    volumes:
+      - ./digster_api:/app/digster_api/
+    command: ./docker-entrypoint-test.sh

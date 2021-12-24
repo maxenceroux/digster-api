@@ -24,7 +24,7 @@ def get_spotify_user_info() -> Dict[str, Any]:
         str(os.environ.get("SPOTIFY_PWD")),
         str(os.environ.get("CHROME_DRIVER")),
     )
-    token = scrapper.get_token()
+    token = scrapper.get_spotify_token()
     spotify_client = SpotifyController(
         client_id=str(os.environ.get("SPOTIFY_CLIENT_ID")),
         client_secret=str(os.environ.get("SPOTIFY_CLIENT_SECRET")),
@@ -42,7 +42,7 @@ def get_recently_played_tracks(after: int, before: int) -> List[Listen]:
         str(os.environ.get("SPOTIFY_PWD")),
         str(os.environ.get("CHROME_DRIVER")),
     )
-    token = scrapper.get_token()
+    token = scrapper.get_spotify_token()
     spotify_client = SpotifyController(
         client_id=str(os.environ.get("SPOTIFY_CLIENT_ID")),
         client_secret=str(os.environ.get("SPOTIFY_CLIENT_SECRET")),
@@ -85,7 +85,7 @@ def get_tracks_info() -> Sequence[Optional[Track]]:
         str(os.environ.get("SPOTIFY_PWD")),
         str(os.environ.get("CHROME_DRIVER")),
     )
-    token = scrapper.get_token()
+    token = scrapper.get_spotify_token()
     spotify_client = SpotifyController(
         client_id=str(os.environ.get("SPOTIFY_CLIENT_ID")),
         client_secret=str(os.environ.get("SPOTIFY_CLIENT_SECRET")),
@@ -134,7 +134,7 @@ def get_artists_info() -> Sequence[Optional[Artist]]:
         str(os.environ.get("SPOTIFY_PWD")),
         str(os.environ.get("CHROME_DRIVER")),
     )
-    token = scrapper.get_token()
+    token = scrapper.get_spotify_token()
     spotify_client = SpotifyController(
         client_id=str(os.environ.get("SPOTIFY_CLIENT_ID")),
         client_secret=str(os.environ.get("SPOTIFY_CLIENT_SECRET")),
@@ -173,7 +173,7 @@ def get_albums_info() -> Sequence[Optional[Album]]:
         str(os.environ.get("SPOTIFY_PWD")),
         str(os.environ.get("CHROME_DRIVER")),
     )
-    token = scrapper.get_token()
+    token = scrapper.get_spotify_token()
     spotify_client = SpotifyController(
         client_id=str(os.environ.get("SPOTIFY_CLIENT_ID")),
         client_secret=str(os.environ.get("SPOTIFY_CLIENT_SECRET")),

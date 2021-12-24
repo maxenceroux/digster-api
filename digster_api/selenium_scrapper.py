@@ -17,7 +17,7 @@ class SeleniumScrapper:
         self.spotify_password = spotify_password
         self.chromedriver = chromedriver
 
-    def get_token(self) -> str:
+    def get_spotify_token(self) -> str:
         chrome_options = Options()
         chrome_options.add_argument("--headless")
         chrome_options.add_argument("--no-sandbox")
@@ -59,3 +59,29 @@ class SeleniumScrapper:
         token = button.get_attribute("value")
         driver.quit()
         return token
+
+    def get_chartmetric_cookie(self, cm_email: str, cm_password: str) -> str:
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--window-size=1920x1080")
+        if self.chromedriver == "local":
+            driver = webdriver.Chrome(options=chrome_options)
+        else:
+            driver = webdriver.Remote(
+                "http://chrome:4444/wd/hub",
+                DesiredCapabilities.CHROME,
+                options=chrome_options,
+            )
+        driver.get("https://app.chartmetric.com/login")
+        driver.find_element_by_id("email").send_keys(cm_email)
+        driver.find_element_by_id("password").send_keys(cm_password)
+        driver.find_element_by_xpath("//button[@type='submit']").click()
+        time.sleep(3)
+        driver.get("https://api.chartmetric.com/user/auth")
+        time.sleep(3)
+        print(driver.get_cookie("connect.sid"))
+        cookie = driver.get_cookie("connect.sid").get("value")
+        driver.quit()
+        return cookie
