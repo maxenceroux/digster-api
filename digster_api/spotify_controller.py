@@ -252,3 +252,79 @@ class SpotifyController:
             )
         results["artists"] = artists
         return results
+
+    
+    def get_user_saved_albums(
+        self, token: str, user_spotify_id: str
+    ) -> Dict[str, Any]:
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        }
+        params = {"limit":50, "offset":0}
+        url = f"{self._base_url}/v1/me/albums"
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            raise SystemExit(err)
+        results={}
+        albums=[]
+        user_albums=[]
+        if response.json().get("next"):
+            while response.json().get("next"):
+                response = requests.get(url, headers=headers)
+                if response.json().get("items"):
+                    for item in response.json().get("items"):
+                        single_album = {
+                            "spotify_id": item.get("album").get("id"),
+                            "type": item.get("album").get("album_type"),
+                            "artist_spotify_id": item.get("album").get("artists")[0].get("id"),
+                            "upc_id": item.get("album").get("external_ids").get("upc"),
+                            "label": item.get("album").get("label"),
+                            "name": item.get("album").get("name"),
+                            "release_date": item.get("album").get("release_date"),
+                            "image_url": item.get("album").get("images")[0].get("url"),
+                            "genres": " - ".join(item.get("album").get("genres")),
+                            "total_tracks":item.get("album").get("total_tracks"),
+                            "popularity":item.get("album").get("popularity"),
+                            "created_at": datetime.now()
+                        }
+                        single_user_album = {
+                            "user_spotify_id":user_spotify_id,
+                            "album_spotify_id":item.get("album").get("id"),
+                            "added_at":item.get("added_at"),
+                            "created_at": datetime.now()
+                            
+                        }
+                        albums.append(single_album)
+                        user_albums.append(single_user_album)
+                    url = response.json().get("next")
+        else:
+            for item in response.json().get("items"):
+                single_album = {
+                    "spotify_id": item.get("album").get("id"),
+                    "type": item.get("album").get("album_type"),
+                    "artist_spotify_id": item.get("album").get("artists")[0].get("id"),
+                    "upc_id": item.get("album").get("external_ids").get("upc"),
+                    "label": item.get("album").get("label"),
+                    "name": item.get("album").get("name"),
+                    "release_date": item.get("album").get("release_date"),
+                    "image_url": item.get("album").get("images")[0].get("url"),
+                    "genres": " - ".join(item.get("album").get("genres")),
+                    "total_tracks":item.get("album").get("total_tracks"),
+                    "popularity":item.get("album").get("popularity"),
+                    "created_at": datetime.now()
+                }
+                single_user_album = {
+                            "user_spotify_id":user_spotify_id,
+                            "album_spotify_id":item.get("album").get("id"),
+                            "added_at":item.get("added_at"),
+                            "created_at": datetime.now()
+                        }
+                albums.append(single_album)
+                user_albums.append(single_user_album)
+        results["albums"]=albums
+        results["user_albums"]=user_albums
+        return results

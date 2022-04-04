@@ -55,13 +55,25 @@ class Album(Base):
     spotify_id = Column(String, index=True)
     artist_id = Column(String, index=True)
     created_at = Column(DateTime)
+    type = Column(String)
     name = Column(String)
+    upc_id = Column(String)
     genres = Column(String)
     image_url = Column(String)
     label = Column(String)
     popularity = Column(Integer)
-    release_date = Column(Date)
+    release_date = Column(String)
     total_tracks = Column(Integer)
+    created_at = Column(DateTime)
+
+class UserAlbum(Base):
+    __tablename__="user_albums"
+    id = Column(Integer, primary_key=True, index=True)
+    user_spotify_id = Column(Integer, index=True)
+    album_spotify_id = Column(String, index=True)
+    added_at = Column(Date)
+    created_at = Column(DateTime)
+
 
 
 class Artist(Base):

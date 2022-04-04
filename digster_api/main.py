@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Sequence
 from fastapi import FastAPI
 
 from digster_api.digster_db import DigsterDB
-from digster_api.models import Album, Artist, Listen, Track
+from digster_api.models import Album, Artist, Listen, Track, UserAlbum
 from digster_api.selenium_scrapper import SeleniumScrapper
 from digster_api.spotify_controller import SpotifyController
 
@@ -63,6 +63,29 @@ def get_recently_played_tracks(after: int, before: int) -> List[Listen]:
     db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
     db.insert_listens(listens)
     return listens
+
+@app.get("/saved_albums")
+def get_saved_albums():
+    scrapper = SeleniumScrapper(
+        str(os.environ.get("SPOTIFY_USER")),
+        str(os.environ.get("SPOTIFY_PWD")),
+        str(os.environ.get("CHROME_DRIVER")),
+    )
+    token = scrapper.get_spotify_token()
+    spotify_client = SpotifyController(
+        client_id=str(os.environ.get("SPOTIFY_USER")),
+        client_secret=str(os.environ.get("SPOTIFY_PASSWORD")),
+    )
+    user_id = spotify_client.get_user_info(token).get("id")
+    results=spotify_client.get_user_saved_albums(token=token ,user_spotify_id=user_id)
+    albums = results.get("albums")
+    user_albums = results.get("user_albums")
+    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    for user_album in user_albums:
+        if db.session.query(UserAlbum.id).filter_by(user_spotify_id=user_album.get("user_spotify_id")).filter_by(album_spotify_id=user_album.get("album_spotify_id")).first() is None:
+            db.insert_user_album(user_album)
+    insert_untracked_albums()
+    return albums
 
 
 @app.get("/tracks_info")
@@ -191,3 +214,43 @@ def get_albums_info() -> Sequence[Optional[Album]]:
         db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
         db.insert_albums(albums)
     return albums
+
+
+def insert_untracked_albums():
+    untracked_albums_query = f"""
+    SELECT DISTINCT ALBUM_SPOTIFY_ID
+    FROM USER_ALBUMS
+    LEFT JOIN ALBUMS ON USER_ALBUMS.ALBUM_SPOTIFY_ID = ALBUMS.SPOTIFY_ID
+    WHERE ALBUMS.SPOTIFY_ID IS NULL and ALBUM_SPOTIFY_ID is not null
+    
+    """
+    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    spotify_client = SpotifyController(
+        str(os.environ.get("SPOTIFY_CLIENT_ID")),
+        str(os.environ.get("SPOTIFY_CLIENT_SECRET")),
+    )
+    spotify_token = spotify_client.get_unauth_token()
+    untracked_albums_dict = db.run_select_query(untracked_albums_query)
+    untracked_albums = [
+        result_tuple["album_spotify_id"] for result_tuple in untracked_albums_dict
+    ]
+    if not untracked_albums:
+        return []
+    albums = []
+
+    all_albums: Dict[str, Any] = {}
+    all_albums["albums"] = []
+    for i in range(0, len(untracked_albums), 10):
+        accepted_len_untracked_albums = untracked_albums[i : i + 10]
+
+        albums_info = spotify_client.get_albums_info(
+            token=spotify_token, album_ids=accepted_len_untracked_albums
+        )
+
+        if albums_info.get("albums"):
+            for album in albums_info.get("albums"):
+                album.update({"created_at": datetime.now()})
+                albums.append(Album(**album))
+    db.insert_albums(albums)
+    db.close_conn()
+    return True
