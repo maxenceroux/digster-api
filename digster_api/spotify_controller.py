@@ -244,7 +244,9 @@ class SpotifyController:
                 {
                     "spotify_id": artist.get("id"),
                     "genres": " - ".join(artist.get("genres")),
-                    "image_url": artist.get("images")[0].get("url"),
+                    "image_url": artist.get("images")[0].get("url") 
+                    if artist.get("images")
+                        else None,
                     "name": artist.get("name"),
                     "followers": artist.get("followers").get("total"),
                     "popularity": artist.get("popularity"),
