@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import sessionmaker
 
-from digster_api.models import Album, Artist, Listen, Track, User
+from digster_api.models import Album, Artist, Listen, Track, User, UserAlbum
 
 
 class DigsterDB:
@@ -28,6 +28,11 @@ class DigsterDB:
         self.session.execute(stmt)
         self.session.commit()
 
+    def insert_user_album(self, user_album: Dict[str, Any]) -> None:
+        stmt = insert(UserAlbum).values(user_album)
+        self.session.execute(stmt)
+        self.session.commit()
+
     def insert_listens(self, listens: List[Listen]) -> None:
         self.session.bulk_save_objects(listens)
         self.session.commit()
@@ -47,3 +52,6 @@ class DigsterDB:
     def run_select_query(self, query: str):
         results_list = self.session.execute(query).fetchall()
         return results_list
+
+    def close_conn(self):
+            self.db.dispose()

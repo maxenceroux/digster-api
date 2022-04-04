@@ -16,6 +16,8 @@ services:
     depends_on:
       - chrome
       - initdb
+    volumes:
+      - ./digster_api/alembic/versions:/app/digster_api/alembic/versions
 
   initdb:
     build:

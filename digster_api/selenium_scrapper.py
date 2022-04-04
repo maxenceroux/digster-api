@@ -19,7 +19,7 @@ class SeleniumScrapper:
 
     def get_spotify_token(self) -> str:
         chrome_options = Options()
-        chrome_options.add_argument("--headless")
+        # chrome_options.add_argument("--headless")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--window-size=1920x1080")
@@ -50,11 +50,11 @@ class SeleniumScrapper:
         button = driver.find_element_by_id("oauthRequestToken").click()
         time.sleep(3)
         button = driver.find_element_by_id("login-username")
-        button.send_keys(self.spotify_user)
+        button.send_keys("maxence.b.roux@gmail.com")
         button = driver.find_element_by_id("login-password")
-        button.send_keys(self.spotify_password)
+        button.send_keys("}jdS[Uc[qwX{")
         button = driver.find_element_by_id("login-button").click()
-        time.sleep(3)
+        time.sleep(4)
         button = driver.find_element_by_id("oauth-input")
         token = button.get_attribute("value")
         driver.quit()
