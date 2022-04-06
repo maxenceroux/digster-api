@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import sessionmaker
 
@@ -77,5 +77,14 @@ class DigsterDB:
         results_list = self.session.execute(query).fetchall()
         return results_list
 
+    def update_color_album(self, album_id:int, album_color:str):
+        stmt = (
+            update(Album).
+            where(Album.id == album_id).
+            values(dominant_color=album_color)
+        )
+        self.session.execute(stmt)
+        self.session.commit()
+        
     def close_conn(self):
             self.db.dispose()

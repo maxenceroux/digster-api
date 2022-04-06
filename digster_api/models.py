@@ -65,6 +65,7 @@ class Album(Base):
     release_date = Column(String)
     total_tracks = Column(Integer)
     created_at = Column(DateTime)
+    dominant_color = Column(String)
 
 class UserAlbum(Base):
     __tablename__="user_albums"

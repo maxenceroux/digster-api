@@ -356,6 +356,7 @@ def get_album_style_genre(album_id):
     album_style = db.run_select_query(album_style_query)
     album_genre = db.run_select_query(album_genre_query)
     album_style_genre = {"style":album_style, "genre":album_genre}
+    db.close_conn()
     return album_style_genre
 
 @app.get("/album_curators")
@@ -368,18 +369,25 @@ def get_album_curators(album_id):
     """
     db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
     album_curators = db.run_select_query(album_curators_query)
+    db.close_conn()
     return album_curators
 
-@app.get("/album_dominant_color")
-def get_album_dominant_color(album_spotify_id):
-    album_query = f"""
-    SELECT image_url
+@app.get("/albums_dominant_color")
+def get_albums_dominant_color():
+    albums_query = f"""
+    SELECT image_url, id
     FROM albums
-    where spotify_id = '{album_spotify_id}'
+    where dominant_color is null
     """
     db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    album_image_url = db.run_select_query(album_query)[0]["image_url"]
-    print(album_image_url)
+    albums = db.run_select_query(albums_query)
     cf = ColorFinder()
-    dominant_color = cf.get_dominant_color(album_image_url)
-    return dominant_color
+    for album in albums:
+        print(album["image_url"])
+        try:
+            dominant_color = cf.get_dominant_color(album["image_url"])
+        except Exception:
+            dominant_color="#000000"
+        db.update_color_album(album["id"],dominant_color)
+    db.close_conn()
+    return albums_query
