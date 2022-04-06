@@ -273,32 +273,67 @@ def get_album_genres():
     return album_genres_styles
 
 @app.get("/random_album")
-def get_random_album(styles:str=None):
+def get_random_album(styles:str=None, curator:str=None):
     if styles:
         styles_list=styles.split(",")
         styles=", ".join(f"'{style}'" for style in styles_list)
-        random_album_query = f"""
-        SELECT ALBUMS.*,
-        ARTISTS.NAME ARTIST_NAME
-        FROM ALBUMS
-        LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
-        LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
-        LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
-        WHERE STYLE in ({styles})
-        ORDER BY RANDOM()
-        LIMIT 1
-        """
+        if curator:
+            curators_list = curator.split(",")
+            curators= ", ".join(f"'{curator}'" for curator in curators_list)
+            random_album_query = f"""
+            SELECT ALBUMS.*,
+            ARTISTS.NAME ARTIST_NAME
+            FROM ALBUMS
+            LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
+            LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
+            LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
+            LEFT JOIN USER_ALBUMS on USER_ALBUMS.ALBUM_SPOTIFY_ID = ALBUMS.SPOTIFY_ID
+            LEFT JOIN USERS on USER_ALBUMS.USER_SPOTIFY_ID = USERS.ID
+            WHERE STYLE in ({styles}) and USERS.DISPLAY_NAME in ({curators})
+            ORDER BY RANDOM()
+            LIMIT 1
+            """
+        else:
+            random_album_query = f"""
+            SELECT ALBUMS.*,
+            ARTISTS.NAME ARTIST_NAME
+            FROM ALBUMS
+            LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
+            LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
+            LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
+            WHERE STYLE in ({styles})
+            ORDER BY RANDOM()
+            LIMIT 1
+            """
+
     else: 
-        random_album_query = f"""
-        SELECT ALBUMS.*,
-        ARTISTS.NAME ARTIST_NAME
-        FROM ALBUMS
-        LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
-        LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
-        LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
-        ORDER BY RANDOM()
-        LIMIT 1
-        """
+        if curator:
+            curators_list = curator.split(",")
+            curators= ", ".join(f"'{curator}'" for curator in curators_list)
+            random_album_query = f"""
+            SELECT ALBUMS.*,
+            ARTISTS.NAME ARTIST_NAME
+            FROM ALBUMS
+            LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
+            LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
+            LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
+            LEFT JOIN USER_ALBUMS on USER_ALBUMS.ALBUM_SPOTIFY_ID = ALBUMS.SPOTIFY_ID
+            LEFT JOIN USERS on USER_ALBUMS.USER_SPOTIFY_ID = USERS.ID
+            WHERE USERS.DISPLAY_NAME in {curators}
+            ORDER BY RANDOM()
+            LIMIT 1
+            """
+        else:
+            random_album_query = f"""
+            SELECT ALBUMS.*,
+            ARTISTS.NAME ARTIST_NAME
+            FROM ALBUMS
+            LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
+            LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
+            LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
+            ORDER BY RANDOM()
+            LIMIT 1
+            """
     db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
     random_album = db.run_select_query(random_album_query)[0]
     return random_album
@@ -322,3 +357,15 @@ def get_album_style_genre(album_id):
     album_genre = db.run_select_query(album_genre_query)
     album_style_genre = {"style":album_style, "genre":album_genre}
     return album_style_genre
+
+@app.get("/album_curators")
+def get_album_curators(album_id):
+    album_curators_query = f"""
+    SELECT display_name
+    FROM user_albums
+    LEFT JOIN users on users.id = user_albums.user_spotify_id
+    where album_spotify_id = '{album_id}'
+    """
+    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    album_curators = db.run_select_query(album_curators_query)
+    return album_curators
