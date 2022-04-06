@@ -10,7 +10,7 @@ from digster_api.digster_db import DigsterDB
 from digster_api.models import Album, Artist, Genre, Listen, Style, Track, UserAlbum
 from digster_api.selenium_scrapper import SeleniumScrapper
 from digster_api.spotify_controller import SpotifyController
-
+from digster_api.dominant_color_finder import ColorFinder
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -369,3 +369,17 @@ def get_album_curators(album_id):
     db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
     album_curators = db.run_select_query(album_curators_query)
     return album_curators
+
+@app.get("/album_dominant_color")
+def get_album_dominant_color(album_spotify_id):
+    album_query = f"""
+    SELECT image_url
+    FROM albums
+    where spotify_id = '{album_spotify_id}'
+    """
+    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    album_image_url = db.run_select_query(album_query)[0]["image_url"]
+    print(album_image_url)
+    cf = ColorFinder()
+    dominant_color = cf.get_dominant_color(album_image_url)
+    return dominant_color
