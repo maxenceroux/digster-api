@@ -86,3 +86,29 @@ class Artist(Base):
     followers = Column(Integer)
     popularity = Column(Integer)
     image_url = Column(String)
+
+class Genre(Base):
+    __tablename__ = "genres"
+    id = Column(Integer, primary_key=True, index=True)
+    genre = Column(String, index=True)
+    created_at = Column(DateTime)
+
+class Style(Base):
+    __tablename__ = "styles"
+    id = Column(Integer, primary_key=True, index=True)
+    style = Column(String, index=True)
+    created_at = Column(DateTime)
+
+class AlbumGenre(Base):
+    __tablename__ = "album_genres"
+    id = Column(Integer, primary_key=True, index=True)
+    album_id = Column(Integer, index=True)
+    genre_id = Column(Integer, index=True)
+    created_at = Column(DateTime)
+
+class AlbumStyle(Base):
+    __tablename__ = "album_styles"
+    id = Column(Integer, primary_key=True, index=True)
+    album_id = Column(Integer, index=True)
+    style_id = Column(Integer, index=True)
+    created_at = Column(DateTime)

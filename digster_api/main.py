@@ -2,14 +2,33 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence
 
+from click import style
+
 from fastapi import FastAPI
 
 from digster_api.digster_db import DigsterDB
-from digster_api.models import Album, Artist, Listen, Track, UserAlbum
+from digster_api.models import Album, Artist, Genre, Listen, Style, Track, UserAlbum
 from digster_api.selenium_scrapper import SeleniumScrapper
 from digster_api.spotify_controller import SpotifyController
 
+
+from fastapi.middleware.cors import CORSMiddleware
+
+
+
+origins = [
+    "http://localhost:3000",
+]
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 
 @app.get("/")
@@ -85,6 +104,7 @@ def get_saved_albums():
         if db.session.query(UserAlbum.id).filter_by(user_spotify_id=user_album.get("user_spotify_id")).filter_by(album_spotify_id=user_album.get("album_spotify_id")).first() is None:
             db.insert_user_album(user_album)
     insert_untracked_albums()
+    insert_untracked_artists()
     return albums
 
 
@@ -137,8 +157,7 @@ def get_tracks_info() -> Sequence[Optional[Track]]:
     return tracks
 
 
-@app.get("/artists_info")
-def get_artists_info() -> Sequence[Optional[Artist]]:
+def insert_untracked_artists() -> Sequence[Optional[Artist]]:
     db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
     untracked_artists_query = """
     SELECT DISTINCT ARTIST_ID
@@ -152,20 +171,16 @@ def get_artists_info() -> Sequence[Optional[Artist]]:
     ]
     if not untracked_artists:
         return []
-    scrapper = SeleniumScrapper(
-        str(os.environ.get("SPOTIFY_USER")),
-        str(os.environ.get("SPOTIFY_PWD")),
-        str(os.environ.get("CHROME_DRIVER")),
-    )
-    token = scrapper.get_spotify_token()
+    
     spotify_client = SpotifyController(
         client_id=str(os.environ.get("SPOTIFY_CLIENT_ID")),
         client_secret=str(os.environ.get("SPOTIFY_CLIENT_SECRET")),
     )
+    spotify_token = spotify_client.get_unauth_token()
     for i in range(0, len(untracked_artists), 49):
         accepted_len_untracked_artists = untracked_artists[i : i + 49]
         artists_info = spotify_client.get_artists_info(
-            token=token, artist_ids=accepted_len_untracked_artists
+            token=spotify_token, artist_ids=accepted_len_untracked_artists
         )
         artists = []
         for artist in artists_info["artists"]:
@@ -175,45 +190,6 @@ def get_artists_info() -> Sequence[Optional[Artist]]:
         db.insert_artists(artists)
     return artists
 
-
-@app.get("/albums_info")
-def get_albums_info() -> Sequence[Optional[Album]]:
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    untracked_albums_query = """
-    SELECT DISTINCT ALBUM_ID
-    FROM TRACKS
-    LEFT JOIN ALBUMS ON TRACKS.ALBUM_ID = ALBUMS.SPOTIFY_ID
-    WHERE ALBUMS.SPOTIFY_ID IS NULL
-    """
-    untracked_albums_dict = db.run_select_query(untracked_albums_query)
-    untracked_albums = [
-        result_tuple["album_id"] for result_tuple in untracked_albums_dict
-    ]
-    if not untracked_albums:
-        return []
-    scrapper = SeleniumScrapper(
-        str(os.environ.get("SPOTIFY_USER")),
-        str(os.environ.get("SPOTIFY_PWD")),
-        str(os.environ.get("CHROME_DRIVER")),
-    )
-    token = scrapper.get_spotify_token()
-    spotify_client = SpotifyController(
-        client_id=str(os.environ.get("SPOTIFY_CLIENT_ID")),
-        client_secret=str(os.environ.get("SPOTIFY_CLIENT_SECRET")),
-    )
-    for i in range(0, len(untracked_albums), 49):
-        accepted_len_untracked_tracks = untracked_albums[i : i + 49]
-
-        albums_info = spotify_client.get_albums_info(
-            token=token, album_ids=accepted_len_untracked_tracks
-        )
-        albums = []
-        for album in albums_info["albums"]:
-            album.update({"created_at": datetime.now()})
-            albums.append(Album(**album))
-        db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-        db.insert_albums(albums)
-    return albums
 
 
 def insert_untracked_albums():
@@ -254,3 +230,95 @@ def insert_untracked_albums():
     db.insert_albums(albums)
     db.close_conn()
     return True
+
+@app.get("/genres")
+def get_album_genres():
+    ungenred_albums = f"""
+    SELECT ALBUMS.ID,
+	ARTISTS.NAME ARTIST_NAME,
+	ALBUMS.NAME ALBUM_NAME
+    FROM ALBUMS
+    LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ARTIST_ID
+    LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
+    LEFT JOIN ALBUM_GENRES ON ALBUMS.ID = ALBUM_GENRES.ALBUM_ID
+    WHERE ALBUM_STYLES.ID IS NULL
+        and ALBUM_GENRES.ID IS NULL
+    """
+    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    ungenred_albums_dict = db.run_select_query(ungenred_albums)
+    scrapper = SeleniumScrapper(
+        str(os.environ.get("SPOTIFY_USER")),
+        str(os.environ.get("SPOTIFY_PWD")),
+        str(os.environ.get("CHROME_DRIVER")),
+    )
+    
+    chunk_size=20
+    chunks = [ungenred_albums_dict[x:x+chunk_size] for x in range(0, len(ungenred_albums_dict), chunk_size)]
+    for chunk in chunks:
+        album_genres_styles = scrapper.get_album_genres(chunk)
+        for album_genre_style in album_genres_styles:
+            for genre in album_genre_style["genres"]:
+                if db.session.query(Genre.id).filter_by(genre=genre).first() is None:
+                    db.insert_genre(genre)
+                genre_id = db.session.query(Genre.id).filter_by(genre=genre).first()[0]
+                album_genre = {"genre_id":genre_id, "album_id":album_genre_style["album_id"]}
+                db.insert_album_genre(album_genre)
+            for style in album_genre_style["styles"]:
+                if db.session.query(Style.id).filter_by(style=style).first() is None:
+                    db.insert_style(style)
+                style_id = db.session.query(Style.id).filter_by(style=style).first()[0]
+                album_style = {"style_id":style_id, "album_id":album_genre_style["album_id"]}
+                db.insert_album_style(album_style)
+
+    return album_genres_styles
+
+@app.get("/random_album")
+def get_random_album(styles:str=None):
+    if styles:
+        styles_list=styles.split(",")
+        styles=", ".join(f"'{style}'" for style in styles_list)
+        random_album_query = f"""
+        SELECT ALBUMS.*,
+        ARTISTS.NAME ARTIST_NAME
+        FROM ALBUMS
+        LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
+        LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
+        LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
+        WHERE STYLE in ({styles})
+        ORDER BY RANDOM()
+        LIMIT 1
+        """
+    else: 
+        random_album_query = f"""
+        SELECT ALBUMS.*,
+        ARTISTS.NAME ARTIST_NAME
+        FROM ALBUMS
+        LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
+        LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
+        LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
+        ORDER BY RANDOM()
+        LIMIT 1
+        """
+    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    random_album = db.run_select_query(random_album_query)[0]
+    return random_album
+
+@app.get("/album_style_genre")
+def get_album_style_genre(album_id):
+    album_style_query = f"""
+    SELECT style 
+    FROM album_styles
+    left join styles on album_styles.style_id = styles.id
+    where album_id = {album_id} 
+    """
+    album_genre_query = f"""
+    SELECT genre 
+    FROM album_genres
+    left join genres on album_genres.genre_id = genres.id
+    where album_id = {album_id} 
+    """
+    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    album_style = db.run_select_query(album_style_query)
+    album_genre = db.run_select_query(album_genre_query)
+    album_style_genre = {"style":album_style, "genre":album_genre}
+    return album_style_genre

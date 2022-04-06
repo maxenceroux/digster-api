@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import sessionmaker
 
-from digster_api.models import Album, Artist, Listen, Track, User, UserAlbum
+from digster_api.models import Album, AlbumGenre, AlbumStyle, Artist, Genre, Listen, Style, Track, User, UserAlbum
 
 
 class DigsterDB:
@@ -30,6 +30,30 @@ class DigsterDB:
 
     def insert_user_album(self, user_album: Dict[str, Any]) -> None:
         stmt = insert(UserAlbum).values(user_album)
+        self.session.execute(stmt)
+        self.session.commit()
+    
+    def insert_genre(self, genre: str) -> None:
+        genre_dict = {"created_at":datetime.now(), "genre":genre}
+        stmt = insert(Genre).values(genre_dict)
+        self.session.execute(stmt)
+        self.session.commit()
+
+    def insert_style(self, style: str) -> None:
+        style_dict = {"created_at":datetime.now(), "style":style}
+        stmt = insert(Style).values(style_dict)
+        self.session.execute(stmt)
+        self.session.commit()
+
+    def insert_album_genre(self, album_genre: Dict[str,Any]) -> None:
+        album_genre.update({"created_at": datetime.now()})
+        stmt = insert(AlbumGenre).values(album_genre)
+        self.session.execute(stmt)
+        self.session.commit()
+
+    def insert_album_style(self, album_style: Dict[str,Any]) -> None:
+        album_style.update({"created_at": datetime.now()})
+        stmt = insert(AlbumStyle).values(album_style)
         self.session.execute(stmt)
         self.session.commit()
 

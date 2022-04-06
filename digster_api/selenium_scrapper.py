@@ -1,4 +1,5 @@
 import time
+from typing import Any, Dict, List
 
 from dotenv import load_dotenv
 from selenium import webdriver
@@ -85,3 +86,49 @@ class SeleniumScrapper:
         cookie = driver.get_cookie("connect.sid").get("value")
         driver.quit()
         return cookie
+
+
+    def get_album_genres(self, albums: List[Dict]):
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--window-size=1920x1080")
+        if self.chromedriver == "local":
+            driver = webdriver.Chrome(options=chrome_options)
+        else:
+            driver = webdriver.Remote(
+                "http://chrome:4444/wd/hub",
+                DesiredCapabilities.CHROME,
+                options=chrome_options,
+            )
+        url = f"https://www.discogs.com/"
+        driver.get(url)
+        time.sleep(1)
+        results = []
+        driver.find_element_by_id("onetrust-accept-btn-handler").click()
+        for album in albums:
+            print(album)
+            query = f'{album["album_name"].replace(" ", "+")}+{album["artist_name"].replace(" ", "+")}'
+            url = f"https://www.discogs.com/search/?q={query}&type=all"
+            driver.get(url)
+            
+            search_results = driver.find_elements_by_xpath('//div[@id="search_results"]/div')
+            if search_results:
+                
+                search_results[0].click()
+                time.sleep(0.5)
+                info = driver.find_elements_by_xpath('//table[@class="table_1fWaB"]/tbody/tr')
+                genres=""
+                styles=""
+                if info:
+                    for item in info[0].find_elements_by_xpath('//tr'):
+                        if "Genre: " in item.text:
+                            genre_str = item.text
+                            genres = genre_str.split("Genre: ")[1].split(", ")
+                        if "Style: " in item.text:
+                            style_str = item.text
+                            styles = style_str.split("Style: ")[1].split(", ")
+                    results.append({"album_id":album["id"], "genres":genres,"styles":styles})
+        driver.quit()
+        return results
