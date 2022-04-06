@@ -2,6 +2,8 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence
 
+from click import style
+
 from fastapi import FastAPI
 
 from digster_api.digster_db import DigsterDB
@@ -9,7 +11,24 @@ from digster_api.models import Album, Artist, Genre, Listen, Style, Track, UserA
 from digster_api.selenium_scrapper import SeleniumScrapper
 from digster_api.spotify_controller import SpotifyController
 
+
+from fastapi.middleware.cors import CORSMiddleware
+
+
+
+origins = [
+    "http://localhost:3000",
+]
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 
 @app.get("/")
@@ -223,7 +242,7 @@ def get_album_genres():
     LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
     LEFT JOIN ALBUM_GENRES ON ALBUMS.ID = ALBUM_GENRES.ALBUM_ID
     WHERE ALBUM_STYLES.ID IS NULL
-        OR ALBUM_GENRES.ID IS NULL
+        and ALBUM_GENRES.ID IS NULL
     """
     db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
     ungenred_albums_dict = db.run_select_query(ungenred_albums)
@@ -233,22 +252,73 @@ def get_album_genres():
         str(os.environ.get("CHROME_DRIVER")),
     )
     
-    album_genres_styles = scrapper.get_album_genres(ungenred_albums_dict)
-
-    
-    for album_genre_style in album_genres_styles:
-        
-        for genre in album_genre_style["genres"]:
-            if db.session.query(Genre.id).filter_by(genre=genre).first() is None:
-                db.insert_genre(genre)
-            genre_id = db.session.query(Genre.id).filter_by(genre=genre).first()[0]
-            album_genre = {"genre_id":genre_id, "album_id":album_genre_style["album_id"]}
-            db.insert_album_genre(album_genre)
-        for style in album_genre_style["styles"]:
-            if db.session.query(Style.id).filter_by(style=style).first() is None:
-                db.insert_style(style)
-            style_id = db.session.query(Style.id).filter_by(style=style).first()[0]
-            album_style = {"style_id":style_id, "album_id":album_genre_style["album_id"]}
-            db.insert_album_style(album_style)
+    chunk_size=20
+    chunks = [ungenred_albums_dict[x:x+chunk_size] for x in range(0, len(ungenred_albums_dict), chunk_size)]
+    for chunk in chunks:
+        album_genres_styles = scrapper.get_album_genres(chunk)
+        for album_genre_style in album_genres_styles:
+            for genre in album_genre_style["genres"]:
+                if db.session.query(Genre.id).filter_by(genre=genre).first() is None:
+                    db.insert_genre(genre)
+                genre_id = db.session.query(Genre.id).filter_by(genre=genre).first()[0]
+                album_genre = {"genre_id":genre_id, "album_id":album_genre_style["album_id"]}
+                db.insert_album_genre(album_genre)
+            for style in album_genre_style["styles"]:
+                if db.session.query(Style.id).filter_by(style=style).first() is None:
+                    db.insert_style(style)
+                style_id = db.session.query(Style.id).filter_by(style=style).first()[0]
+                album_style = {"style_id":style_id, "album_id":album_genre_style["album_id"]}
+                db.insert_album_style(album_style)
 
     return album_genres_styles
+
+@app.get("/random_album")
+def get_random_album(styles:str=None):
+    if styles:
+        styles_list=styles.split(",")
+        styles=", ".join(f"'{style}'" for style in styles_list)
+        random_album_query = f"""
+        SELECT ALBUMS.*,
+        ARTISTS.NAME ARTIST_NAME
+        FROM ALBUMS
+        LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
+        LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
+        LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
+        WHERE STYLE in ({styles})
+        ORDER BY RANDOM()
+        LIMIT 1
+        """
+    else: 
+        random_album_query = f"""
+        SELECT ALBUMS.*,
+        ARTISTS.NAME ARTIST_NAME
+        FROM ALBUMS
+        LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
+        LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
+        LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
+        ORDER BY RANDOM()
+        LIMIT 1
+        """
+    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    random_album = db.run_select_query(random_album_query)[0]
+    return random_album
+
+@app.get("/album_style_genre")
+def get_album_style_genre(album_id):
+    album_style_query = f"""
+    SELECT style 
+    FROM album_styles
+    left join styles on album_styles.style_id = styles.id
+    where album_id = {album_id} 
+    """
+    album_genre_query = f"""
+    SELECT genre 
+    FROM album_genres
+    left join genres on album_genres.genre_id = genres.id
+    where album_id = {album_id} 
+    """
+    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    album_style = db.run_select_query(album_style_query)
+    album_genre = db.run_select_query(album_genre_query)
+    album_style_genre = {"style":album_style, "genre":album_genre}
+    return album_style_genre

@@ -108,6 +108,7 @@ class SeleniumScrapper:
         results = []
         driver.find_element_by_id("onetrust-accept-btn-handler").click()
         for album in albums:
+            print(album)
             query = f'{album["album_name"].replace(" ", "+")}+{album["artist_name"].replace(" ", "+")}'
             url = f"https://www.discogs.com/search/?q={query}&type=all"
             driver.get(url)
