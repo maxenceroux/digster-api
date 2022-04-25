@@ -22,6 +22,8 @@ RUN poetry export -f requirements.txt -o requirements.txt --without-hashes && /v
 
 
 FROM base as final
+RUN apt-get update
+RUN apt-get install ffmpeg libsm6 libxext6  -y
 COPY --from=builder /venv /venv
 COPY Makefile Makefile
 COPY ./digster_api/ ./digster_api/

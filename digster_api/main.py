@@ -10,7 +10,7 @@ from digster_api.digster_db import DigsterDB
 from digster_api.models import Album, Artist, Genre, Listen, Style, Track, UserAlbum
 from digster_api.selenium_scrapper import SeleniumScrapper
 from digster_api.spotify_controller import SpotifyController
-
+from digster_api.dominant_color_finder import ColorFinder
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -273,37 +273,79 @@ def get_album_genres():
     return album_genres_styles
 
 @app.get("/random_album")
-def get_random_album(styles:str=None, curator:str=None):
+def get_random_album(styles:str=None, curator:str=None, current_album_id:int=999999):
     if styles:
         styles_list=styles.split(",")
+        styles_count=len(styles_list)
         styles=", ".join(f"'{style}'" for style in styles_list)
         if curator:
             curators_list = curator.split(",")
             curators= ", ".join(f"'{curator}'" for curator in curators_list)
             random_album_query = f"""
-            SELECT ALBUMS.*,
-            ARTISTS.NAME ARTIST_NAME
-            FROM ALBUMS
-            LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
-            LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
-            LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
-            LEFT JOIN USER_ALBUMS on USER_ALBUMS.ALBUM_SPOTIFY_ID = ALBUMS.SPOTIFY_ID
-            LEFT JOIN USERS on USER_ALBUMS.USER_SPOTIFY_ID = USERS.ID
-            WHERE STYLE in ({styles}) and USERS.DISPLAY_NAME in ({curators})
-            ORDER BY RANDOM()
-            LIMIT 1
+            WITH ALBUMS_ALL AS
+	        (SELECT ALBUMS.*,
+			ARTISTS.NAME ARTIST_NAME,
+			STYLES.STYLE
+		FROM ALBUMS
+		LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
+		LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
+		LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
+		LEFT JOIN USER_ALBUMS ON USER_ALBUMS.ALBUM_SPOTIFY_ID = ALBUMS.SPOTIFY_ID
+		LEFT JOIN USERS ON USER_ALBUMS.USER_SPOTIFY_ID = USERS.ID
+		WHERE STYLE in ({styles}) and USERS.DISPLAY_NAME in ({curators}) and albums.id <> {current_album_id}),
+	    COUNT_STYLES AS
+	    (SELECT ID,
+			SPOTIFY_ID,
+			NAME,
+			IMAGE_URL,
+			LABEL,
+			PRIMARY_COLOR,
+            SECONDARY_COLOR,
+			ARTIST_NAME,
+			COUNT(STYLE)
+		FROM ALBUMS_ALL
+		GROUP BY 1,2,
+			3,4,
+			5,6,
+			7,8)
+        SELECT *
+        FROM COUNT_STYLES
+        WHERE COUNT >= {styles_count}
+        order by random()
+        limit 1
             """
         else:
             random_album_query = f"""
-            SELECT ALBUMS.*,
-            ARTISTS.NAME ARTIST_NAME
-            FROM ALBUMS
-            LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
-            LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
-            LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
-            WHERE STYLE in ({styles})
-            ORDER BY RANDOM()
-            LIMIT 1
+            WITH ALBUMS_ALL AS
+	        (SELECT ALBUMS.*,
+			ARTISTS.NAME ARTIST_NAME,
+			STYLES.STYLE
+		FROM ALBUMS
+		LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
+		LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
+		LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
+		WHERE STYLE in ({styles}) and albums.id <> {current_album_id}),
+	    COUNT_STYLES AS
+	    (SELECT ID,
+			SPOTIFY_ID,
+			NAME,
+			IMAGE_URL,
+			LABEL,
+			PRIMARY_COLOR,
+            SECONDARY_COLOR,
+			ARTIST_NAME,
+			COUNT(STYLE)
+		FROM ALBUMS_ALL
+		GROUP BY 1,2,
+			3,4,
+			5,6,
+			7,8)
+        SELECT *
+        FROM COUNT_STYLES
+        WHERE COUNT >= {styles_count}
+        order by random()
+        limit 1
+
             """
 
     else: 
@@ -319,7 +361,7 @@ def get_random_album(styles:str=None, curator:str=None):
             LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
             LEFT JOIN USER_ALBUMS on USER_ALBUMS.ALBUM_SPOTIFY_ID = ALBUMS.SPOTIFY_ID
             LEFT JOIN USERS on USER_ALBUMS.USER_SPOTIFY_ID = USERS.ID
-            WHERE USERS.DISPLAY_NAME in {curators}
+            WHERE USERS.DISPLAY_NAME in ({curators}) and albums.id <> {current_album_id}
             ORDER BY RANDOM()
             LIMIT 1
             """
@@ -331,11 +373,16 @@ def get_random_album(styles:str=None, curator:str=None):
             LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
             LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
             LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
+            WHERE albums.id <> {current_album_id}
             ORDER BY RANDOM()
             LIMIT 1
             """
     db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    if not db.run_select_query(random_album_query):
+        db.close_conn()
+        return False
     random_album = db.run_select_query(random_album_query)[0]
+    db.close_conn()
     return random_album
 
 @app.get("/album_style_genre")
@@ -356,6 +403,7 @@ def get_album_style_genre(album_id):
     album_style = db.run_select_query(album_style_query)
     album_genre = db.run_select_query(album_genre_query)
     album_style_genre = {"style":album_style, "genre":album_genre}
+    db.close_conn()
     return album_style_genre
 
 @app.get("/album_curators")
@@ -368,4 +416,25 @@ def get_album_curators(album_id):
     """
     db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
     album_curators = db.run_select_query(album_curators_query)
+    db.close_conn()
     return album_curators
+
+@app.get("/albums_dominant_color")
+def get_albums_dominant_color():
+    albums_query = f"""
+    SELECT image_url, id
+    FROM albums
+    
+    """
+    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    albums = db.run_select_query(albums_query)
+    cf = ColorFinder()
+    for album in albums:
+        print(album["image_url"])
+        try:
+            dominant_color = cf.get_dominant_color(album["image_url"])
+        except Exception:
+            dominant_color=["#FFFFF","#00000"]
+        db.update_color_album(album["id"],dominant_color)
+    db.close_conn()
+    return albums_query
