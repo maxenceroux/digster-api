@@ -65,7 +65,11 @@ class Album(Base):
     release_date = Column(String)
     total_tracks = Column(Integer)
     created_at = Column(DateTime)
-    dominant_color = Column(String)
+    primary_color = Column(String)
+    secondary_color = Column(String)
+    tertiary_color = Column(String)
+    fourth_color = Column(String)
+    fifth_color = Column(String)
 
 class UserAlbum(Base):
     __tablename__="user_albums"

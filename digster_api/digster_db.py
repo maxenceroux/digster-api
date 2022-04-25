@@ -77,11 +77,12 @@ class DigsterDB:
         results_list = self.session.execute(query).fetchall()
         return results_list
 
-    def update_color_album(self, album_id:int, album_color:str):
+    def update_color_album(self, album_id:int, colors):
+
         stmt = (
             update(Album).
             where(Album.id == album_id).
-            values(dominant_color=album_color)
+            values(primary_color=colors[0],secondary_color=colors[1])
         )
         self.session.execute(stmt)
         self.session.commit()

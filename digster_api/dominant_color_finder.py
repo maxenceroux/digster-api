@@ -24,7 +24,12 @@ class ColorFinder:
         bar[:] = color
         red, green, blue = int(color[2]), int(color[1]), int(color[0])
         hsv_bar = cv2.cvtColor(bar, cv2.COLOR_BGR2HSV)
+        
         hue, sat, val = hsv_bar[0][0]
+        if val <=150: val=150
+        hsv_bar[0][0] =hue, sat, val
+        rgb = cv2.cvtColor(hsv_bar, cv2.COLOR_HSV2RGB)
+        red, green, blue =  rgb[0][0]
         return bar, (red, green, blue), (hue, sat, val)
 
     def _make_histogram(self,cluster):
@@ -62,7 +67,7 @@ class ColorFinder:
 
         image = img.reshape((height * width, 3))
 
-        num_clusters = 1
+        num_clusters = 2
         clusters = KMeans(n_clusters=num_clusters)
         clusters.fit(image)
 
@@ -75,6 +80,7 @@ class ColorFinder:
         # finally, we'll output a graphic showing the colors in order
         bars = []
         hsv_values = []
+        hexs =[]
         for index, rows in enumerate(combined):
             bar, rgb, hsv = self._make_bar(100, 100, rows[1])
             print(f'Bar {index + 1}')
@@ -83,4 +89,5 @@ class ColorFinder:
             print(f'  Hex values: {self._hextriplet(rgb)}')
             hsv_values.append(hsv)
             bars.append(bar)
-        return self._hextriplet(rgb)
+            hexs.append(self._hextriplet(rgb))
+        return hexs
