@@ -273,7 +273,7 @@ def get_album_genres():
     return album_genres_styles
 
 @app.get("/random_album")
-def get_random_album(styles:str=None, curator:str=None, label:str=None, current_album_id:int=999999):
+def get_random_album(styles:str=None, curator:str=None, label:str="", current_album_id:int=999999):
     if styles:
         styles_list=styles.split(",")
         styles_count=len(styles_list)
