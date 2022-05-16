@@ -84,13 +84,7 @@ def get_recently_played_tracks(after: int, before: int) -> List[Listen]:
     return listens
 
 @app.get("/saved_albums")
-def get_saved_albums():
-    scrapper = SeleniumScrapper(
-        str(os.environ.get("SPOTIFY_USER")),
-        str(os.environ.get("SPOTIFY_PWD")),
-        str(os.environ.get("CHROME_DRIVER")),
-    )
-    token = scrapper.get_spotify_token()
+def get_saved_albums(token:str):
     spotify_client = SpotifyController(
         client_id=str(os.environ.get("SPOTIFY_USER")),
         client_secret=str(os.environ.get("SPOTIFY_PASSWORD")),
