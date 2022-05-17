@@ -37,13 +37,7 @@ def root() -> Dict[str, str]:
 
 
 @app.get("/spotify_user_info")
-def get_spotify_user_info() -> Dict[str, Any]:
-    scrapper = SeleniumScrapper(
-        str(os.environ.get("SPOTIFY_USER")),
-        str(os.environ.get("SPOTIFY_PWD")),
-        str(os.environ.get("CHROME_DRIVER")),
-    )
-    token = scrapper.get_spotify_token()
+def get_spotify_user_info(token: str) -> Dict[str, Any]:
     spotify_client = SpotifyController(
         client_id=str(os.environ.get("SPOTIFY_CLIENT_ID")),
         client_secret=str(os.environ.get("SPOTIFY_CLIENT_SECRET")),
@@ -51,8 +45,29 @@ def get_spotify_user_info() -> Dict[str, Any]:
     user = spotify_client.get_user_info(token)
     db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
     db.upsert_user(user)
+    db.close_conn()
     return user
 
+@app.post("/allow_fetching")
+def set_allow_fetching(user_id: int) -> Dict[str, Any]:
+    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    query = f"SELECT has_allowed_fetching FROM USERS WHERE id = {user_id}"
+    actual_fetching = db.run_select_query(query)[0]["has_allowed_fetching"]
+    if actual_fetching:
+        new_fetching = False
+    else: new_fetching= True
+    db.update_fetching_allowance(user_id, new_fetching)
+    db.close_conn()
+    return new_fetching
+
+
+@app.get("/user_info")
+def get_spotify_user_info(user_id: int) -> Dict[str, Any]:
+    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    query = f"SELECT * FROM USERS WHERE id = {user_id}"
+    user = db.run_select_query(query)[0]
+    db.close_conn()
+    return user
 
 @app.post("/recently_played_tracks/")
 def get_recently_played_tracks(after: int, before: int) -> List[Listen]:

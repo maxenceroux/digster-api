@@ -77,6 +77,16 @@ class DigsterDB:
         results_list = self.session.execute(query).fetchall()
         return results_list
 
+    def update_fetching_allowance(self, user_id:int, value):
+
+        stmt = (
+            update(User).
+            where(User.id == user_id).
+            values(has_allowed_fetching=value)
+        )
+        self.session.execute(stmt)
+        self.session.commit()
+
     def update_color_album(self, album_id:int, colors):
 
         stmt = (

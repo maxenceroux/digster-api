@@ -1,4 +1,6 @@
-from sqlalchemy import Column, Float, Integer, String
+
+from email.policy import default
+from sqlalchemy import Column, Float, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.sqltypes import Date, DateTime
 
@@ -15,6 +17,7 @@ class User(Base):
     country = Column(String)
     image_url = Column(String)
     created_at = Column(DateTime)
+    has_allowed_fetching = Column(Boolean, default=False)
 
 
 class Listen(Base):
