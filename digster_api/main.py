@@ -7,7 +7,7 @@ from click import style
 from fastapi import FastAPI
 
 from digster_api.digster_db import DigsterDB
-from digster_api.models import Album, Artist, Genre, Listen, Style, Track, UserAlbum
+from digster_api.models import Album, Artist, Follow, Genre, Listen, Style, Track, UserAlbum
 from digster_api.selenium_scrapper import SeleniumScrapper
 from digster_api.spotify_controller import SpotifyController
 from digster_api.dominant_color_finder import ColorFinder
@@ -564,3 +564,36 @@ def get_albums_dominant_color():
         db.update_color_album(album["id"],dominant_color)
     db.close_conn()
     return albums_query
+
+@app.post("/follow")
+def set_user_follows(follower_id: int, following_id:int) -> Dict[str, Any]:
+    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    query = f"""SELECT * FROM follows
+    WHERE follower_id = {follower_id}
+    and following_id = {following_id}"""
+    result = db.run_select_query(query)
+    if not result:
+        follow = {"follower_id": follower_id, "following_id":following_id, "is_following":True}
+        db.insert_follow(follow)
+        db.close_conn()
+        return follow
+    if result[0]["is_following"]:
+        follow = {"follower_id": follower_id, "following_id":following_id, "is_following":False}
+    else: 
+        follow = {"follower_id": follower_id, "following_id":following_id, "is_following":True}
+    db.update_follow(follow)
+    db.close_conn()
+    return follow
+
+@app.get("/follow")
+def get_follow(follower_id: int, following_id: int) -> bool:
+    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    query = f"""SELECT * FROM follows
+    WHERE follower_id = {follower_id}
+    and following_id = {following_id}"""
+    result = db.run_select_query(query)
+    if not result:
+        db.close_conn()
+        return False
+    return result[0]["is_following"]
+    

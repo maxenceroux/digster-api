@@ -120,3 +120,12 @@ class AlbumStyle(Base):
     album_id = Column(Integer, index=True)
     style_id = Column(Integer, index=True)
     created_at = Column(DateTime)
+
+class Follow(Base):
+    __tablename__ = "follows"
+    id = Column(Integer, primary_key=True, index=True)
+    follower_id = Column(Integer, index=True)
+    following_id = Column(Integer, index=True)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+    is_following = Column(Boolean)
