@@ -502,6 +502,15 @@ def get_random_album(styles:str=None, curator:str=None, label:str="", current_al
     db.close_conn()
     return random_album
 
+@app.get("/users")
+def get_users():
+    query = """
+    SELECT id, display_name from users"""
+    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    users=db.run_select_query(query)
+    db.close_conn()
+    return users
+
 @app.get("/album_style_genre")
 def get_album_style_genre(album_id):
     album_style_query = f"""
