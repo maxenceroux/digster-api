@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import sessionmaker
 
-from digster_api.models import Album, AlbumGenre, AlbumStyle, Artist, Genre, Listen, Style, Track, User, UserAlbum
+from digster_api.models import Album, AlbumGenre, AlbumStyle, Artist, Follow, Genre, Listen, Style, Track, User, UserAlbum
 
 
 class DigsterDB:
@@ -97,5 +97,21 @@ class DigsterDB:
         self.session.execute(stmt)
         self.session.commit()
         
+    def insert_follow(self, follow: Dict[str,Any]) -> None:
+        follow.update({"created_at": datetime.now(), "updated_at":datetime.now()})
+        stmt = insert(Follow).values(follow)
+        self.session.execute(stmt)
+        self.session.commit()
+
+    def update_follow(self,follow: Dict[str, Any]):
+        stmt = (
+            update(Follow).
+            where(Follow.following_id == follow["following_id"]).
+            where(Follow.follower_id == follow["follower_id"]).
+            values(updated_at=datetime.now(),is_following=follow["is_following"])
+        )
+        self.session.execute(stmt)
+        self.session.commit()
+        
     def close_conn(self):
-            self.db.dispose()
+        self.db.dispose()
