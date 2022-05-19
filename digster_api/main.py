@@ -289,6 +289,8 @@ def get_random_album(user_id:int, styles:str=None, curator:str=None, label:str=N
                 FROM FOLLOWING_USERS_ALBUMS)
     AND ALBUMS.ID <> {current_album_id}
     """
+    if not user_id:
+        user_id=-1
     if label:
         album_condition += f"""
         AND ALBUMS.label = {label}
@@ -319,7 +321,8 @@ def get_random_album(user_id:int, styles:str=None, curator:str=None, label:str=N
             FROM USER_ALBUMS
             WHERE USER_SPOTIFY_ID in
                     (SELECT FOLLOWING_ID
-                        FROM FOLLOWING_USERS)),
+                        FROM FOLLOWING_USERS)
+            OR USER_SPOTIFY_ID = '1138415959'),
         ALBUMS_ALL as (
     SELECT ALBUMS.*,
         ARTISTS.NAME ARTIST_NAME,
