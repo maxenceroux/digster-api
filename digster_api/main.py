@@ -293,7 +293,7 @@ def get_random_album(user_id:int, styles:str=None, curator:str=None, label:str=N
         user_id=-1
     if label:
         album_condition += f"""
-        AND ALBUMS.label = {label}
+        AND ALBUMS.label = '{label}'
         """
     if curator:
         curators_list = curator.split(",")
