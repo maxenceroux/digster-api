@@ -282,218 +282,79 @@ def get_album_genres():
     return album_genres_styles
 
 @app.get("/random_album")
-def get_random_album(styles:str=None, curator:str=None, label:str="", current_album_id:int=999999):
+def get_random_album(user_id:int, styles:str=None, curator:str=None, label:str=None, current_album_id:int=999999):
+    album_condition = f"""
+    WHERE ALBUMS.SPOTIFY_ID in
+            (SELECT ALBUM_SPOTIFY_ID
+                FROM FOLLOWING_USERS_ALBUMS)
+    AND ALBUMS.ID <> {current_album_id}
+    """
+    if not user_id:
+        user_id=-1
+    if label:
+        album_condition += f"""
+        AND ALBUMS.label = '{label}'
+        """
+    if curator:
+        curators_list = curator.split(",")
+        curators= ", ".join(f"'{curator}'" for curator in curators_list)
+        album_condition += f"""
+        AND USERS.DISPLAY_NAME in ({curators})
+        """
     if styles:
-        styles_list=styles.split(",")
-        styles_count=len(styles_list)
-        styles=", ".join(f"'{style}'" for style in styles_list)
-        if curator:
-            curators_list = curator.split(",")
-            curators= ", ".join(f"'{curator}'" for curator in curators_list)
-            if label=="":
-                random_album_query = f"""
-                WITH ALBUMS_ALL AS
-                (SELECT ALBUMS.*,
-                ARTISTS.NAME ARTIST_NAME,
-                STYLES.STYLE
-            FROM ALBUMS
-            LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
-            LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
-            LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
-            LEFT JOIN USER_ALBUMS ON USER_ALBUMS.ALBUM_SPOTIFY_ID = ALBUMS.SPOTIFY_ID
-            LEFT JOIN USERS ON USER_ALBUMS.USER_SPOTIFY_ID = USERS.ID
-            WHERE STYLE in ({styles}) and USERS.DISPLAY_NAME in ({curators}) and albums.id <> {current_album_id}
-            ),
-            COUNT_STYLES AS
-            (SELECT ID,
-                SPOTIFY_ID,
-                NAME,
-                IMAGE_URL,
-                LABEL,
-                PRIMARY_COLOR,
-                SECONDARY_COLOR,
-                ARTIST_NAME,
-                COUNT(STYLE)
-            FROM ALBUMS_ALL
-            GROUP BY 1,2,
-                3,4,
-                5,6,
-                7,8)
-            SELECT *
-            FROM COUNT_STYLES
-            WHERE COUNT >= {styles_count}
-            order by random()
-            limit 1
-                """
-            else:
-                random_album_query = f"""
-                WITH ALBUMS_ALL AS
-                (SELECT ALBUMS.*,
-                ARTISTS.NAME ARTIST_NAME,
-                STYLES.STYLE
-            FROM ALBUMS
-            LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
-            LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
-            LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
-            LEFT JOIN USER_ALBUMS ON USER_ALBUMS.ALBUM_SPOTIFY_ID = ALBUMS.SPOTIFY_ID
-            LEFT JOIN USERS ON USER_ALBUMS.USER_SPOTIFY_ID = USERS.ID
-            WHERE STYLE in ({styles}) and USERS.DISPLAY_NAME in ({curators}) and albums.id <> {current_album_id}
-            and albums.label='{label}'
-            ),
-            COUNT_STYLES AS
-            (SELECT ID,
-                SPOTIFY_ID,
-                NAME,
-                IMAGE_URL,
-                LABEL,
-                PRIMARY_COLOR,
-                SECONDARY_COLOR,
-                ARTIST_NAME,
-                COUNT(STYLE)
-            FROM ALBUMS_ALL
-            GROUP BY 1,2,
-                3,4,
-                5,6,
-                7,8)
-            SELECT *
-            FROM COUNT_STYLES
-            WHERE COUNT >= {styles_count}
-            order by random()
-            limit 1
-                """
-
-
-        else:
-            if label=="":
-                random_album_query = f"""
-                WITH ALBUMS_ALL AS
-                (SELECT ALBUMS.*,
-                ARTISTS.NAME ARTIST_NAME,
-                STYLES.STYLE
-            FROM ALBUMS
-            LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
-            LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
-            LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
-            WHERE STYLE in ({styles}) and albums.id <> {current_album_id}),
-            COUNT_STYLES AS
-            (SELECT ID,
-                SPOTIFY_ID,
-                NAME,
-                IMAGE_URL,
-                LABEL,
-                PRIMARY_COLOR,
-                SECONDARY_COLOR,
-                ARTIST_NAME,
-                COUNT(STYLE)
-            FROM ALBUMS_ALL
-            GROUP BY 1,2,
-                3,4,
-                5,6,
-                7,8)
-            SELECT *
-            FROM COUNT_STYLES
-            WHERE COUNT >= {styles_count}
-            order by random()
-            limit 1
-
-                """
-            else:
-                random_album_query = f"""
-                WITH ALBUMS_ALL AS
-                (SELECT ALBUMS.*,
-                ARTISTS.NAME ARTIST_NAME,
-                STYLES.STYLE
-            FROM ALBUMS
-            LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
-            LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
-            LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
-            WHERE STYLE in ({styles}) and albums.id <> {current_album_id}
-            and albums.label='{label}),
-            COUNT_STYLES AS
-            (SELECT ID,
-                SPOTIFY_ID,
-                NAME,
-                IMAGE_URL,
-                LABEL,
-                PRIMARY_COLOR,
-                SECONDARY_COLOR,
-                ARTIST_NAME,
-                COUNT(STYLE)
-            FROM ALBUMS_ALL
-            GROUP BY 1,2,
-                3,4,
-                5,6,
-                7,8)
-            SELECT *
-            FROM COUNT_STYLES
-            WHERE COUNT >= {styles_count}
-            order by random()
-            limit 1
-
-                """
-
-
-    else: 
-        if curator:
-            curators_list = curator.split(",")
-            curators= ", ".join(f"'{curator}'" for curator in curators_list)
-            if label=="":
-                random_album_query = f"""
-                SELECT ALBUMS.*,
-                ARTISTS.NAME ARTIST_NAME
-                FROM ALBUMS
-                LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
-                LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
-                LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
-                LEFT JOIN USER_ALBUMS on USER_ALBUMS.ALBUM_SPOTIFY_ID = ALBUMS.SPOTIFY_ID
-                LEFT JOIN USERS on USER_ALBUMS.USER_SPOTIFY_ID = USERS.ID
-                WHERE USERS.DISPLAY_NAME in ({curators}) and albums.id <> {current_album_id}
-                ORDER BY RANDOM()
-                LIMIT 1
-                """
-            else:
-                random_album_query = f"""
-                SELECT ALBUMS.*,
-                ARTISTS.NAME ARTIST_NAME
-                FROM ALBUMS
-                LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
-                LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
-                LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
-                LEFT JOIN USER_ALBUMS on USER_ALBUMS.ALBUM_SPOTIFY_ID = ALBUMS.SPOTIFY_ID
-                LEFT JOIN USERS on USER_ALBUMS.USER_SPOTIFY_ID = USERS.ID
-                WHERE USERS.DISPLAY_NAME in ({curators}) and albums.id <> {current_album_id}
-                and albums.label='{label}'
-                ORDER BY RANDOM()
-                LIMIT 1
-                """
-
-        else:
-            if label=="":
-                random_album_query = f"""
-                SELECT ALBUMS.*,
-                ARTISTS.NAME ARTIST_NAME
-                FROM ALBUMS
-                LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
-                LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
-                LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
-                WHERE albums.id <> {current_album_id}
-                ORDER BY RANDOM()
-                LIMIT 1
-                """
-            else:
-                random_album_query = f"""
-                SELECT ALBUMS.*,
-                ARTISTS.NAME ARTIST_NAME
-                FROM ALBUMS
-                LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
-                LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
-                LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
-                WHERE albums.id <> {current_album_id}
-                and albums.label='{label}'
-                ORDER BY RANDOM()
-                LIMIT 1
-                """
-
+        styles_list = styles.split(",")
+        styles = ", ".join(f"'{style}'" for style in styles_list)
+        styles_count = len(styles_list)
+        album_condition += f"""
+        AND STYLE IN ({styles})
+        """
+    else:
+        styles_count = 0
+    random_album_query = f"""
+    WITH FOLLOWING_USERS AS
+        (SELECT FOLLOWING_ID
+            FROM FOLLOWS
+            WHERE FOLLOWER_ID = {user_id}
+                AND IS_FOLLOWING IS TRUE),
+        FOLLOWING_USERS_ALBUMS AS
+        (SELECT ALBUM_SPOTIFY_ID
+            FROM USER_ALBUMS
+            WHERE USER_SPOTIFY_ID in
+                    (SELECT FOLLOWING_ID
+                        FROM FOLLOWING_USERS)
+            OR USER_SPOTIFY_ID = '1138415959'),
+        ALBUMS_ALL as (
+    SELECT ALBUMS.*,
+        ARTISTS.NAME ARTIST_NAME,
+        STYLES.STYLE
+    FROM ALBUMS
+    LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ALBUMS.ARTIST_ID
+    LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
+    LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
+    LEFT JOIN USER_ALBUMS on USER_ALBUMS.ALBUM_SPOTIFY_ID = ALBUMS.SPOTIFY_ID
+    LEFT JOIN USERS on USER_ALBUMS.USER_SPOTIFY_ID = USERS.ID
+    {album_condition}),
+    COUNT_STYLES AS
+    (SELECT ID,
+        SPOTIFY_ID,
+        NAME,
+        IMAGE_URL,
+        LABEL,
+        PRIMARY_COLOR,
+        SECONDARY_COLOR,
+        ARTIST_NAME,
+        COUNT(STYLE)
+    FROM ALBUMS_ALL
+    GROUP BY 1,2,
+        3,4,
+        5,6,
+        7,8)
+        SELECT *
+    FROM COUNT_STYLES
+    WHERE COUNT >= {styles_count}
+    order by random()
+    limit 1
+    """
     db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
     if not db.run_select_query(random_album_query):
         db.close_conn()
