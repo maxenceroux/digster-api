@@ -9,18 +9,11 @@ from fastapi import FastAPI
 
 from digster_api.digster_db import DigsterDB
 from digster_api.models import (
-    Album,
-    Artist,
-    Follow,
-    Genre,
     Listen,
-    Style,
     Track,
-    UserAlbum,
 )
 from digster_api.selenium_scrapper import SeleniumScrapper
 from digster_api.spotify_controller import SpotifyController
-from digster_api.dominant_color_finder import ColorFinder
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -345,8 +338,3 @@ def get_follow(follower_id: int, following_id: int) -> bool:
         return False
     return result[0]["is_following"]
 
-
-@app.get("/test_celery", status_code=200)
-def fetch_playlists_recommendations():
-    task = fetch_album_data_worker.delay()
-    return {"details": "recommendations are fetching", "task_id": task.id}

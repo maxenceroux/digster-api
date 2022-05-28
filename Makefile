@@ -19,4 +19,4 @@ start-test-docker:
 	docker-compose -f docker-compose.yml -f docker-compose.test.yml up
 
 start-worker:
-	celery worker --app=digster_api.worker.celery --loglevel=info
+	celery worker --app=digster_api.worker.celery --loglevel=info -c 4

@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime
+import time
 from typing import Any, Dict, Optional, Sequence
 
 
@@ -22,7 +23,7 @@ celery.conf.result_backend = os.environ.get(
 )
 
 
-def get_albums_dominant_color():
+async def get_albums_dominant_color():
     albums_query = f"""
     SELECT image_url, id
     FROM albums
@@ -43,7 +44,7 @@ def get_albums_dominant_color():
     return albums_query
 
 
-def get_album_genres():
+async def get_album_genres():
     ungenred_albums = f"""
     SELECT ALBUMS.ID,
 	ARTISTS.NAME ARTIST_NAME,
@@ -103,7 +104,7 @@ def get_album_genres():
                     "album_id": album_genre_style["album_id"],
                 }
                 db.insert_album_style(album_style)
-
+    db.close_conn()
     return album_genres_styles
 
 
@@ -127,6 +128,7 @@ def insert_untracked_albums():
         for result_tuple in untracked_albums_dict
     ]
     if not untracked_albums:
+        db.close_conn()
         return []
     albums = []
 
@@ -161,6 +163,7 @@ def insert_untracked_artists() -> Sequence[Optional[Artist]]:
         result_tuple["artist_id"] for result_tuple in untracked_artists_dict
     ]
     if not untracked_artists:
+        db.close_conn()
         return []
 
     spotify_client = SpotifyController(
@@ -179,10 +182,12 @@ def insert_untracked_artists() -> Sequence[Optional[Artist]]:
             artists.append(Artist(**artist))
         db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
         db.insert_artists(artists)
+        db.close_conn()
     return artists
 
 
 async def fetch_albums_data(token: str):
+    logging.info("INSERTING USER ALBUMS")
     spotify_client = SpotifyController(
         client_id=str(os.environ.get("SPOTIFY_USER")),
         client_secret=str(os.environ.get("SPOTIFY_PASSWORD")),
@@ -191,7 +196,6 @@ async def fetch_albums_data(token: str):
     results = spotify_client.get_user_saved_albums(
         token=token, user_spotify_id=user_id
     )
-    albums = results.get("albums")
     user_albums = results.get("user_albums")
     db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
     for user_album in user_albums:
@@ -203,6 +207,7 @@ async def fetch_albums_data(token: str):
             is None
         ):
             db.insert_user_album(user_album)
+    db.close_conn()
     logging.info("INSERTING ALBUMS")
     insert_untracked_albums()
     logging.info("INSERTING ARTISTS")
@@ -213,7 +218,21 @@ async def fetch_albums_data(token: str):
     get_albums_dominant_color()
 
 
-@celery.task(name="fetch_artist_data")
+@celery.task(name="fetch_albums_genres")
+def fetch_albums_genres_worker():
+    logging.info("INSERTING GENRES")
+    asyncio.run(get_album_genres())
+    return True
+
+@celery.task(name="fetch_albums_color")
+def fetch_albums_color_worker():
+    logging.info("INSERTING COLORS")
+    asyncio.run(get_albums_dominant_color())
+    return True
+
+@celery.task(name="fetch_album_data")
 def fetch_album_data_worker(token):
     asyncio.run(fetch_albums_data(token))
+    fetch_albums_genres_worker.delay()
+    fetch_albums_color_worker.delay()
     return True
