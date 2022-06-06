@@ -4,4 +4,4 @@ set -e
 
 . /venv/bin/activate
 
-make start-worker
+make start-worker-genre

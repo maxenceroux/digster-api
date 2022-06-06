@@ -6,10 +6,15 @@ services:
     volumes:
       - ./digster_api:/app/digster_api/
 
-  worker:
-    command: ./docker-entrypoint-worker.sh
+  worker-genre:
+    command: ./docker-entrypoint-worker-genre.sh
     volumes:
       - ./digster_api:/app/digster_api/
+  worker-color:
+    command: ./docker-entrypoint-worker-color.sh
+    volumes:
+      - ./digster_api:/app/digster_api/
+
 
   pgadmin:
     container_name: pgadmin_digster
@@ -32,6 +37,7 @@ services:
       - 8888:8888
     depends_on:
       - redis
-      - worker
+      - worker-genre
+      - worker-color
 volumes:
   pgadmin-digster: null

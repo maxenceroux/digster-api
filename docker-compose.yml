@@ -43,7 +43,17 @@ services:
     ports:
       - "5432:5432"
 
-  worker:
+  worker-genre:
+    build:
+      context: .
+    env_file:
+      - ./digster_api/prod.env
+    depends_on:
+      - chrome
+      - initdb
+      - web
+      - redis
+  worker-color:
     build:
       context: .
     env_file:
