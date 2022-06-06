@@ -14,14 +14,20 @@ from digster_api.selenium_scrapper import SeleniumScrapper
 
 from digster_api.spotify_controller import SpotifyController
 
-celery = Celery(__name__)
-celery.conf.broker_url = os.environ.get(
+celery_color = Celery(__name__)
+celery_genre = Celery(__name__)
+celery_color.conf.broker_url = os.environ.get(
     "CELERY_BROKER_URL", "redis://localhost:6379"
 )
-celery.conf.result_backend = os.environ.get(
+celery_color.conf.result_backend = os.environ.get(
     "CELERY_RESULT_BACKEND", "redis://localhost:6379"
 )
-
+celery_genre.conf.broker_url = os.environ.get(
+    "CELERY_BROKER_URL", "redis://localhost:6379"
+)
+celery_genre.conf.result_backend = os.environ.get(
+    "CELERY_RESULT_BACKEND", "redis://localhost:6379"
+)
 
 async def get_albums_dominant_color():
     albums_query = f"""
@@ -218,19 +224,19 @@ async def fetch_albums_data(token: str):
     get_albums_dominant_color()
 
 
-@celery.task(name="fetch_albums_genres")
+@celery_genre.task(name="fetch_albums_genres")
 def fetch_albums_genres_worker():
     logging.info("INSERTING GENRES")
     asyncio.run(get_album_genres())
     return True
 
-@celery.task(name="fetch_albums_color")
+@celery_color.task(name="fetch_albums_color")
 def fetch_albums_color_worker():
     logging.info("INSERTING COLORS")
     asyncio.run(get_albums_dominant_color())
     return True
 
-@celery.task(name="fetch_album_data")
+@celery_color.task(name="fetch_album_data")
 def fetch_album_data_worker(token):
     asyncio.run(fetch_albums_data(token))
     fetch_albums_genres_worker.delay()
