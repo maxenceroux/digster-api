@@ -1,8 +1,7 @@
 import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence
-
-from click import style
+import json
 
 from fastapi import FastAPI
 
@@ -64,7 +63,27 @@ def set_allow_fetching(user_id: int) -> Dict[str, Any]:
 @app.get("/user_info")
 def get_spotify_user_info(user_id: int) -> Dict[str, Any]:
     db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    query = f"SELECT * FROM USERS WHERE id = {user_id}"
+    query = f"""
+    SELECT USERS.*,
+	COALESCE(FOLLOWING.COUNT,
+		0) AS FOLLOWING_COUNT,
+	COALESCE(FOLLOWER.COUNT,
+		0) AS FOLLOWER_COUNT
+FROM USERS
+LEFT JOIN
+	(SELECT FOLLOWER_ID,
+			COUNT(*)
+		FROM FOLLOWS
+		WHERE FOLLOWER_ID = {user_id}
+		GROUP BY FOLLOWER_ID) AS FOLLOWING ON FOLLOWER_ID = ID
+LEFT JOIN
+	(SELECT FOLLOWING_ID,
+			COUNT(*)
+		FROM FOLLOWS
+		WHERE FOLLOWING_ID = {user_id}
+		GROUP BY FOLLOWING_ID) AS FOLLOWER ON FOLLOWER_ID = ID
+WHERE ID = {user_id}
+    """
     user = db.run_select_query(query)[0]
     db.close_conn()
     return user
