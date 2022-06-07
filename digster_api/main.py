@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from digster_api.worker import fetch_album_data_worker
 
+
 from fastapi import FastAPI
 
 from digster_api.digster_db import DigsterDB
@@ -67,7 +68,27 @@ def set_allow_fetching(user_id: int) -> Dict[str, Any]:
 @app.get("/user_info")
 def get_spotify_user_info(user_id: int) -> Dict[str, Any]:
     db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    query = f"SELECT * FROM USERS WHERE id = {user_id}"
+    query = f"""
+    SELECT USERS.*,
+	COALESCE(FOLLOWING.COUNT,
+		0) AS FOLLOWING_COUNT,
+	COALESCE(FOLLOWER.COUNT,
+		0) AS FOLLOWER_COUNT
+FROM USERS
+LEFT JOIN
+	(SELECT FOLLOWER_ID,
+			COUNT(*)
+		FROM FOLLOWS
+		WHERE FOLLOWER_ID = {user_id}
+		GROUP BY FOLLOWER_ID) AS FOLLOWING ON FOLLOWER_ID = ID
+LEFT JOIN
+	(SELECT FOLLOWING_ID,
+			COUNT(*)
+		FROM FOLLOWS
+		WHERE FOLLOWING_ID = {user_id}
+		GROUP BY FOLLOWING_ID) AS FOLLOWER ON FOLLOWER_ID = ID
+WHERE ID = {user_id}
+    """
     user = db.run_select_query(query)[0]
     db.close_conn()
     return user
@@ -107,6 +128,7 @@ def get_recently_played_tracks(after: int, before: int) -> List[Listen]:
 def get_saved_albums(token: str):
     task = fetch_album_data_worker.delay(token)
     return {"details": "albums are fetching", "task_id": task.id}
+
 
 
 @app.get("/tracks_info")
@@ -336,5 +358,40 @@ def get_follow(follower_id: int, following_id: int) -> bool:
     if not result:
         db.close_conn()
         return False
+    db.close_conn()
     return result[0]["is_following"]
 
+    
+@app.get("/followers")
+def get_followers(following_id: int):
+    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    query = f"""
+    SELECT users.display_name, users.image_url, users.id,
+    case when 
+        (select count(*) 
+        from follows 
+        where following_id = users.id and follower_id = {following_id} and is_following is True)
+        >0 
+        then True else False end as following
+    FROM FOLLOWS
+    LEFT JOIN USERS ON USERS.ID = FOLLOWS.FOLLOWER_ID
+    WHERE FOLLOWING_ID = {following_id}
+    and is_following is True
+    """
+    result = db.run_select_query(query)
+    db.close_conn()
+    return result
+
+@app.get("/following")
+def get_following(follower_id: int):
+    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+    query = f"""
+    SELECT users.display_name, users.image_url, users.id
+    FROM FOLLOWS
+    LEFT JOIN USERS ON USERS.ID = FOLLOWS.FOLLOWING_ID
+    WHERE FOLLOWER_ID = {follower_id}
+    and is_following is True
+    """
+    result = db.run_select_query(query)
+    db.close_conn()
+    return result
