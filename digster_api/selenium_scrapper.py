@@ -141,5 +141,6 @@ class SeleniumScrapper:
                             "styles": styles,
                         }
                     )
+                print(results)
         driver.quit()
         return results

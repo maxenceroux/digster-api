@@ -130,7 +130,6 @@ def get_saved_albums(token: str):
     return {"details": "albums are fetching", "task_id": task.id}
 
 
-
 @app.get("/tracks_info")
 def get_tracks_info() -> Sequence[Optional[Track]]:
     db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
@@ -193,6 +192,8 @@ def get_random_album(
             (SELECT ALBUM_SPOTIFY_ID
                 FROM FOLLOWING_USERS_ALBUMS)
     AND ALBUMS.ID <> {current_album_id}
+    AND ALBUMS.PRIMARY_COLOR IS NOT NULL
+    AND STYLE IS NOT NULL 
     """
     if not user_id:
         user_id = -1
@@ -257,6 +258,7 @@ def get_random_album(
         SELECT *
     FROM COUNT_STYLES
     WHERE COUNT >= {styles_count}
+    
     order by random()
     limit 1
     """
@@ -361,7 +363,7 @@ def get_follow(follower_id: int, following_id: int) -> bool:
     db.close_conn()
     return result[0]["is_following"]
 
-    
+
 @app.get("/followers")
 def get_followers(following_id: int):
     db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
@@ -381,6 +383,7 @@ def get_followers(following_id: int):
     result = db.run_select_query(query)
     db.close_conn()
     return result
+
 
 @app.get("/following")
 def get_following(follower_id: int):

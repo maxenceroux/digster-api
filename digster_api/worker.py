@@ -11,7 +11,7 @@ from digster_api.digster_db import DigsterDB
 from digster_api.dominant_color_finder import ColorFinder
 from digster_api.models import Album, Artist, Genre, Style, UserAlbum
 from digster_api.selenium_scrapper import SeleniumScrapper
-
+from digster_api.discogs_controller import DiscogsController
 from digster_api.spotify_controller import SpotifyController
 
 celery_color = Celery(__name__)
@@ -28,6 +28,7 @@ celery_genre.conf.broker_url = os.environ.get(
 celery_genre.conf.result_backend = os.environ.get(
     "CELERY_RESULT_BACKEND", "redis://localhost:6379"
 )
+
 
 async def get_albums_dominant_color():
     albums_query = f"""
@@ -64,10 +65,9 @@ async def get_album_genres():
     """
     db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
     ungenred_albums_dict = db.run_select_query(ungenred_albums)
-    scrapper = SeleniumScrapper(
-        str(os.environ.get("SPOTIFY_USER")),
-        str(os.environ.get("SPOTIFY_PWD")),
-        str(os.environ.get("CHROME_DRIVER")),
+
+    discogs_client = DiscogsController(
+        user_token=str(os.environ.get("DISCOGS_TOKEN"))
     )
 
     chunk_size = 20
@@ -76,7 +76,7 @@ async def get_album_genres():
         for x in range(0, len(ungenred_albums_dict), chunk_size)
     ]
     for chunk in chunks:
-        album_genres_styles = scrapper.get_album_genres(chunk)
+        album_genres_styles = discogs_client.get_album_genres(chunk)
         for album_genre_style in album_genres_styles:
             for genre in album_genre_style["genres"]:
                 if (
@@ -85,9 +85,7 @@ async def get_album_genres():
                 ):
                     db.insert_genre(genre)
                 genre_id = (
-                    db.session.query(Genre.id)
-                    .filter_by(genre=genre)
-                    .first()[0]
+                    db.session.query(Genre.id).filter_by(genre=genre).first()[0]
                 )
                 album_genre = {
                     "genre_id": genre_id,
@@ -101,9 +99,7 @@ async def get_album_genres():
                 ):
                     db.insert_style(style)
                 style_id = (
-                    db.session.query(Style.id)
-                    .filter_by(style=style)
-                    .first()[0]
+                    db.session.query(Style.id).filter_by(style=style).first()[0]
                 )
                 album_style = {
                     "style_id": style_id,
@@ -218,10 +214,6 @@ async def fetch_albums_data(token: str):
     insert_untracked_albums()
     logging.info("INSERTING ARTISTS")
     insert_untracked_artists()
-    logging.info("INSERTING GENRES")
-    get_album_genres()
-    logging.info("INSERTING COLORS")
-    get_albums_dominant_color()
 
 
 @celery_genre.task(name="fetch_albums_genres")
@@ -230,11 +222,13 @@ def fetch_albums_genres_worker():
     asyncio.run(get_album_genres())
     return True
 
+
 @celery_color.task(name="fetch_albums_color")
 def fetch_albums_color_worker():
     logging.info("INSERTING COLORS")
     asyncio.run(get_albums_dominant_color())
     return True
+
 
 @celery_color.task(name="fetch_album_data")
 def fetch_album_data_worker(token):
