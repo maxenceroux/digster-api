@@ -7,12 +7,10 @@ import certifi
 
 
 class ColorFinder:
-    def __init__(
-        self
-    ) -> None:
+    def __init__(self) -> None:
         pass
 
-    def _make_bar(self,height, width, color):
+    def _make_bar(self, height, width, color):
         """
         Create an image of a given color
         :param: height of the image
@@ -24,15 +22,16 @@ class ColorFinder:
         bar[:] = color
         red, green, blue = int(color[2]), int(color[1]), int(color[0])
         hsv_bar = cv2.cvtColor(bar, cv2.COLOR_BGR2HSV)
-        
+
         hue, sat, val = hsv_bar[0][0]
-        if val <=150: val=150
-        hsv_bar[0][0] =hue, sat, val
+        if val <= 150:
+            val = 150
+        hsv_bar[0][0] = hue, sat, val
         rgb = cv2.cvtColor(hsv_bar, cv2.COLOR_HSV2RGB)
-        red, green, blue =  rgb[0][0]
+        red, green, blue = rgb[0][0]
         return bar, (red, green, blue), (hue, sat, val)
 
-    def _make_histogram(self,cluster):
+    def _make_histogram(self, cluster):
         """
         Count the number of pixels in each cluster
         :param: KMeans cluster
@@ -40,11 +39,11 @@ class ColorFinder:
         """
         numLabels = np.arange(0, len(np.unique(cluster.labels_)) + 1)
         hist, _ = np.histogram(cluster.labels_, bins=numLabels)
-        hist = hist.astype('float32')
+        hist = hist.astype("float32")
         hist /= hist.sum()
         return hist
 
-    def _sort_hsvs(sellf,hsv_list):
+    def _sort_hsvs(sellf, hsv_list):
         """
         Sort the list of HSV values
         :param hsv_list: List of HSV tuples
@@ -52,17 +51,22 @@ class ColorFinder:
         """
         bars_with_indexes = []
         for index, hsv_val in enumerate(hsv_list):
-            bars_with_indexes.append((index, hsv_val[0], hsv_val[1], hsv_val[2]))
+            bars_with_indexes.append(
+                (index, hsv_val[0], hsv_val[1], hsv_val[2])
+            )
         bars_with_indexes.sort(key=lambda elem: (elem[1], elem[2], elem[3]))
         return [item[0] for item in bars_with_indexes]
 
-    def _hextriplet(self,colortuple):
-        return '#' + ''.join(f'{i:02X}' for i in colortuple)
-        
-    def get_dominant_color(self, image_url:str):
-        req = urllib.request.urlopen(image_url,context=ssl.create_default_context(cafile=certifi.where()))
+    def _hextriplet(self, colortuple):
+        return "#" + "".join(f"{i:02X}" for i in colortuple)
+
+    def get_dominant_color(self, image_url: str):
+        req = urllib.request.urlopen(
+            image_url,
+            context=ssl.create_default_context(cafile=certifi.where()),
+        )
         arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
-        img = cv2.imdecode(arr, -1) # 'Load it as it is'
+        img = cv2.imdecode(arr, -1)  # 'Load it as it is'
         height, width, _ = np.shape(img)
 
         image = img.reshape((height * width, 3))
@@ -80,13 +84,13 @@ class ColorFinder:
         # finally, we'll output a graphic showing the colors in order
         bars = []
         hsv_values = []
-        hexs =[]
+        hexs = []
         for index, rows in enumerate(combined):
             bar, rgb, hsv = self._make_bar(100, 100, rows[1])
-            print(f'Bar {index + 1}')
-            print(f'  RGB values: {rgb}')
-            print(f'  HSV values: {hsv}')
-            print(f'  Hex values: {self._hextriplet(rgb)}')
+            print(f"Bar {index + 1}")
+            print(f"  RGB values: {rgb}")
+            print(f"  HSV values: {hsv}")
+            print(f"  Hex values: {self._hextriplet(rgb)}")
             hsv_values.append(hsv)
             bars.append(bar)
             hexs.append(self._hextriplet(rgb))

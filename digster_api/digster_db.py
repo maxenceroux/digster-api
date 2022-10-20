@@ -5,7 +5,19 @@ from sqlalchemy import create_engine, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import sessionmaker
 
-from digster_api.models import Album, AlbumGenre, AlbumStyle, Artist, Follow, Genre, Listen, Style, Track, User, UserAlbum
+from digster_api.models import (
+    Album,
+    AlbumGenre,
+    AlbumStyle,
+    Artist,
+    Follow,
+    Genre,
+    Listen,
+    Style,
+    Track,
+    User,
+    UserAlbum,
+)
 
 
 class DigsterDB:
@@ -32,26 +44,26 @@ class DigsterDB:
         stmt = insert(UserAlbum).values(user_album)
         self.session.execute(stmt)
         self.session.commit()
-    
+
     def insert_genre(self, genre: str) -> None:
-        genre_dict = {"created_at":datetime.now(), "genre":genre}
+        genre_dict = {"created_at": datetime.now(), "genre": genre}
         stmt = insert(Genre).values(genre_dict)
         self.session.execute(stmt)
         self.session.commit()
 
     def insert_style(self, style: str) -> None:
-        style_dict = {"created_at":datetime.now(), "style":style}
+        style_dict = {"created_at": datetime.now(), "style": style}
         stmt = insert(Style).values(style_dict)
         self.session.execute(stmt)
         self.session.commit()
 
-    def insert_album_genre(self, album_genre: Dict[str,Any]) -> None:
+    def insert_album_genre(self, album_genre: Dict[str, Any]) -> None:
         album_genre.update({"created_at": datetime.now()})
         stmt = insert(AlbumGenre).values(album_genre)
         self.session.execute(stmt)
         self.session.commit()
 
-    def insert_album_style(self, album_style: Dict[str,Any]) -> None:
+    def insert_album_style(self, album_style: Dict[str, Any]) -> None:
         album_style.update({"created_at": datetime.now()})
         stmt = insert(AlbumStyle).values(album_style)
         self.session.execute(stmt)
@@ -77,41 +89,45 @@ class DigsterDB:
         results_list = self.session.execute(query).fetchall()
         return results_list
 
-    def update_fetching_allowance(self, user_id:int, value):
+    def update_fetching_allowance(self, user_id: int, value):
 
         stmt = (
-            update(User).
-            where(User.id == user_id).
-            values(has_allowed_fetching=value)
+            update(User)
+            .where(User.id == user_id)
+            .values(has_allowed_fetching=value)
         )
         self.session.execute(stmt)
         self.session.commit()
 
-    def update_color_album(self, album_id:int, colors):
+    def update_color_album(self, album_id: int, colors):
 
         stmt = (
-            update(Album).
-            where(Album.id == album_id).
-            values(primary_color=colors[0],secondary_color=colors[1])
+            update(Album)
+            .where(Album.id == album_id)
+            .values(primary_color=colors[0], secondary_color=colors[1])
         )
         self.session.execute(stmt)
         self.session.commit()
-        
-    def insert_follow(self, follow: Dict[str,Any]) -> None:
-        follow.update({"created_at": datetime.now(), "updated_at":datetime.now()})
+
+    def insert_follow(self, follow: Dict[str, Any]) -> None:
+        follow.update(
+            {"created_at": datetime.now(), "updated_at": datetime.now()}
+        )
         stmt = insert(Follow).values(follow)
         self.session.execute(stmt)
         self.session.commit()
 
-    def update_follow(self,follow: Dict[str, Any]):
+    def update_follow(self, follow: Dict[str, Any]):
         stmt = (
-            update(Follow).
-            where(Follow.following_id == follow["following_id"]).
-            where(Follow.follower_id == follow["follower_id"]).
-            values(updated_at=datetime.now(),is_following=follow["is_following"])
+            update(Follow)
+            .where(Follow.following_id == follow["following_id"])
+            .where(Follow.follower_id == follow["follower_id"])
+            .values(
+                updated_at=datetime.now(), is_following=follow["is_following"]
+            )
         )
         self.session.execute(stmt)
         self.session.commit()
-        
+
     def close_conn(self):
         self.db.dispose()

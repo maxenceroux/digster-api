@@ -87,7 +87,6 @@ class SeleniumScrapper:
         driver.quit()
         return cookie
 
-
     def get_album_genres(self, albums: List[Dict]):
         chrome_options = Options()
         chrome_options.add_argument("--headless")
@@ -109,26 +108,39 @@ class SeleniumScrapper:
         driver.find_element_by_id("onetrust-accept-btn-handler").click()
         for album in albums:
             print(album)
-            query = f'{album["album_name"].replace(" ", "+")}+{album["artist_name"].replace(" ", "+")}'
+            query = (
+                f'{album["album_name"].replace(" ", "+")}+{album["artist_name"].replace(" ", "+")}'
+            )
             url = f"https://www.discogs.com/search/?q={query}&type=all"
             driver.get(url)
-            
-            search_results = driver.find_elements_by_xpath('//div[@id="search_results"]/div')
+
+            search_results = driver.find_elements_by_xpath(
+                '//div[@id="search_results"]/div'
+            )
             if search_results:
-                
+
                 search_results[0].click()
                 time.sleep(0.5)
-                info = driver.find_elements_by_xpath('//table[@class="table_1fWaB"]/tbody/tr')
-                genres=""
-                styles=""
+                info = driver.find_elements_by_xpath(
+                    '//table[@class="table_1fWaB"]/tbody/tr'
+                )
+                genres = ""
+                styles = ""
                 if info:
-                    for item in info[0].find_elements_by_xpath('//tr'):
+                    for item in info[0].find_elements_by_xpath("//tr"):
                         if "Genre: " in item.text:
                             genre_str = item.text
                             genres = genre_str.split("Genre: ")[1].split(", ")
                         if "Style: " in item.text:
                             style_str = item.text
                             styles = style_str.split("Style: ")[1].split(", ")
-                    results.append({"album_id":album["id"], "genres":genres,"styles":styles})
+                    results.append(
+                        {
+                            "album_id": album["id"],
+                            "genres": genres,
+                            "styles": styles,
+                        }
+                    )
+                print(results)
         driver.quit()
         return results

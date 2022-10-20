@@ -26,6 +26,8 @@ services:
       - ./digster_api/prod.env
     depends_on:
       - postgres
+    volumes:
+      - ./digster_api/alembic/versions:/app/digster_api/alembic/versions
     command: ./docker-entrypoint-initdb.sh
 
   postgres:
@@ -41,5 +43,27 @@ services:
     ports:
       - "5432:5432"
 
+  worker-genre:
+    build:
+      context: .
+    env_file:
+      - ./digster_api/prod.env
+    depends_on:
+      - chrome
+      - initdb
+      - web
+      - redis
+  worker-color:
+    build:
+      context: .
+    env_file:
+      - ./digster_api/prod.env
+    depends_on:
+      - chrome
+      - initdb
+      - web
+      - redis
+  redis:
+      image: redis:6-alpine
 volumes:
   postgres-digster: null
