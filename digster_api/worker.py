@@ -37,188 +37,75 @@ async def get_albums_dominant_color():
     WHERE albums.primary_color is null
     
     """
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    albums = db.run_select_query(albums_query)
-    cf = ColorFinder()
-    for album in albums:
-        print(album["image_url"])
-        try:
-            dominant_color = cf.get_dominant_color(album["image_url"])
-        except Exception:
-            dominant_color = ["#FFFFF", "#00000"]
-        db.update_color_album(album["id"], dominant_color)
-    db.close_conn()
-    return albums_query
+    with DigsterDB(db_url=str(os.environ.get("DATABASE_URL"))) as db:
+        albums = db.run_select_query(albums_query)
+        print(len(albums))
+        cf = ColorFinder()
+        i = 1
+        for album in albums:
+            print(
+                f"getting colors {i} out of {len(albums)}, {round(i/len(albums)*100,1)}%"
+            )
+            try:
+                dominant_color = cf.get_dominant_color(album["image_url"])
+            except Exception:
+                dominant_color = ["#FFFFF", "#00000"]
+            try:
+                db.update_color_album(album["id"], dominant_color)
+            except:
+                print("could not update album color")
+            db.update_fetched_colors_date(album["id"])
+            i += 1
+    return True
 
 
 async def get_album_genres():
     ungenred_albums = f"""
-    SELECT ALBUMS.ID,
+    SELECT distinct ALBUMS.ID,
 	ARTISTS.NAME ARTIST_NAME,
 	ALBUMS.NAME ALBUM_NAME
     FROM ALBUMS
-    LEFT JOIN ARTISTS ON ARTISTS.SPOTIFY_ID = ARTIST_ID
-    LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
-    LEFT JOIN ALBUM_GENRES ON ALBUMS.ID = ALBUM_GENRES.ALBUM_ID
-    WHERE ALBUM_STYLES.ID IS NULL
-        and ALBUM_GENRES.ID IS NULL
+    LEFT JOIN ARTISTS ON ARTISTS.ID = ARTIST_ID
+    WHERE FETCHED_GENRES_DATE IS NULL
     """
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    ungenred_albums_dict = db.run_select_query(ungenred_albums)
-
-    discogs_client = DiscogsController(
-        user_token=str(os.environ.get("DISCOGS_TOKEN"))
-    )
-
-    chunk_size = 20
-    chunks = [
-        ungenred_albums_dict[x : x + chunk_size]
-        for x in range(0, len(ungenred_albums_dict), chunk_size)
-    ]
-    for chunk in chunks:
-        album_genres_styles = discogs_client.get_album_genres(chunk)
-        for album_genre_style in album_genres_styles:
-            for genre in album_genre_style["genres"]:
-                if (
-                    db.session.query(Genre.id).filter_by(genre=genre).first()
-                    is None
-                ):
-                    db.insert_genre(genre)
-                genre_id = (
-                    db.session.query(Genre.id).filter_by(genre=genre).first()[0]
-                )
-                album_genre = {
-                    "genre_id": genre_id,
-                    "album_id": album_genre_style["album_id"],
-                }
-                db.insert_album_genre(album_genre)
-            for style in album_genre_style["styles"]:
-                if (
-                    db.session.query(Style.id).filter_by(style=style).first()
-                    is None
-                ):
-                    db.insert_style(style)
-                style_id = (
-                    db.session.query(Style.id).filter_by(style=style).first()[0]
-                )
-                album_style = {
-                    "style_id": style_id,
-                    "album_id": album_genre_style["album_id"],
-                }
-                db.insert_album_style(album_style)
-    db.close_conn()
-    return album_genres_styles
-
-
-def insert_untracked_albums():
-    untracked_albums_query = f"""
-    SELECT DISTINCT ALBUM_SPOTIFY_ID
-    FROM USER_ALBUMS
-    LEFT JOIN ALBUMS ON USER_ALBUMS.ALBUM_SPOTIFY_ID = ALBUMS.SPOTIFY_ID
-    WHERE ALBUMS.SPOTIFY_ID IS NULL and ALBUM_SPOTIFY_ID is not null
-    
-    """
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    spotify_client = SpotifyController(
-        str(os.environ.get("SPOTIFY_CLIENT_ID")),
-        str(os.environ.get("SPOTIFY_CLIENT_SECRET")),
-    )
-    spotify_token = spotify_client.get_unauth_token()
-    untracked_albums_dict = db.run_select_query(untracked_albums_query)
-    untracked_albums = [
-        result_tuple["album_spotify_id"]
-        for result_tuple in untracked_albums_dict
-    ]
-    if not untracked_albums:
-        db.close_conn()
-        return []
-    albums = []
-
-    all_albums: Dict[str, Any] = {}
-    all_albums["albums"] = []
-    for i in range(0, len(untracked_albums), 10):
-        accepted_len_untracked_albums = untracked_albums[i : i + 10]
-
-        albums_info = spotify_client.get_albums_info(
-            token=spotify_token, album_ids=accepted_len_untracked_albums
+    with DigsterDB(db_url=str(os.environ.get("DATABASE_URL"))) as db:
+        ungenred_albums_dict = db.run_select_query(ungenred_albums)
+        print(len(ungenred_albums_dict))
+        discogs_client = DiscogsController(
+            user_token=str(os.environ.get("DISCOGS_TOKEN"))
         )
-
-        if albums_info.get("albums"):
-            for album in albums_info.get("albums"):
-                album.update({"created_at": datetime.now()})
-                albums.append(Album(**album))
-    db.insert_albums(albums)
-    db.close_conn()
-    return True
-
-
-def insert_untracked_artists() -> Sequence[Optional[Artist]]:
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    untracked_artists_query = """
-    SELECT DISTINCT ARTIST_ID
-    FROM ALBUMS
-    LEFT JOIN ARTISTS ON ALBUMS.ARTIST_ID = ARTISTS.SPOTIFY_ID
-    WHERE ARTISTS.SPOTIFY_ID IS NULL
-    """
-    untracked_artists_dict = db.run_select_query(untracked_artists_query)
-    untracked_artists = [
-        result_tuple["artist_id"] for result_tuple in untracked_artists_dict
-    ]
-    if not untracked_artists:
-        db.close_conn()
-        return []
-
-    spotify_client = SpotifyController(
-        client_id=str(os.environ.get("SPOTIFY_CLIENT_ID")),
-        client_secret=str(os.environ.get("SPOTIFY_CLIENT_SECRET")),
-    )
-    spotify_token = spotify_client.get_unauth_token()
-    for i in range(0, len(untracked_artists), 49):
-        accepted_len_untracked_artists = untracked_artists[i : i + 49]
-        artists_info = spotify_client.get_artists_info(
-            token=spotify_token, artist_ids=accepted_len_untracked_artists
-        )
-        artists = []
-        for artist in artists_info["artists"]:
-            artist.update({"created_at": datetime.now()})
-            artists.append(Artist(**artist))
-        db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-        db.insert_artists(artists)
-        db.close_conn()
-    return artists
-
-
-async def fetch_albums_data(token: str):
-    logging.info("INSERTING USER ALBUMS")
-    spotify_client = SpotifyController(
-        client_id=str(os.environ.get("SPOTIFY_USER")),
-        client_secret=str(os.environ.get("SPOTIFY_PASSWORD")),
-    )
-    user_id = spotify_client.get_user_info(token).get("id")
-    results = spotify_client.get_user_saved_albums(
-        token=token, user_spotify_id=user_id
-    )
-    user_albums = results.get("user_albums")
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    for user_album in user_albums:
-        if (
-            db.session.query(UserAlbum.id)
-            .filter_by(user_spotify_id=user_album.get("user_spotify_id"))
-            .filter_by(album_spotify_id=user_album.get("album_spotify_id"))
-            .first()
-            is None
-        ):
-            db.insert_user_album(user_album)
-    db.close_conn()
-    logging.info("INSERTING ALBUMS")
-    insert_untracked_albums()
-    logging.info("INSERTING ARTISTS")
-    insert_untracked_artists()
+        i = 1
+        for ungenred_album in ungenred_albums_dict:
+            print(
+                f"getting genres {i} out of {len(ungenred_albums_dict)}, {round(i/len(ungenred_albums_dict)*100,1)}% - {ungenred_album['album_name']}, {ungenred_album['artist_name']}"
+            )
+            album_tags = discogs_client.get_album_genre(
+                ungenred_album["album_name"], ungenred_album["artist_name"]
+            )
+            if album_tags:
+                if album_tags.get("genres"):
+                    for genre in album_tags.get("genres"):
+                        genre_id = db.insert_genre(genre)
+                        album_genre = {
+                            "genre_id": genre_id,
+                            "album_id": ungenred_album["id"],
+                        }
+                        db.insert_album_genre(album_genre)
+                if album_tags.get("styles"):
+                    for style in album_tags.get("styles"):
+                        style_id = db.insert_style(style)
+                        album_style = {
+                            "style_id": style_id,
+                            "album_id": ungenred_album["id"],
+                        }
+                        db.insert_album_style(album_style)
+            db.update_fetched_genres_date(ungenred_album["id"])
+            i += 1
 
 
 @celery_genre.task(name="fetch_albums_genres")
 def fetch_albums_genres_worker():
-    logging.info("INSERTING GENRES")
+    logging.info("Getting genres")
     asyncio.run(get_album_genres())
     return True
 
@@ -231,8 +118,8 @@ def fetch_albums_color_worker():
 
 
 @celery_color.task(name="fetch_album_data")
-def fetch_album_data_worker(token):
-    asyncio.run(fetch_albums_data(token))
-    fetch_albums_genres_worker.delay()
-    fetch_albums_color_worker.delay()
+def fetch_album_data_worker(user_id):
+    asyncio.run(fetch_albums_data(user_id))
+    # fetch_albums_genres_worker.delay()
+    # fetch_albums_color_worker.delay()
     return True

@@ -87,10 +87,10 @@ class ColorFinder:
         hexs = []
         for index, rows in enumerate(combined):
             bar, rgb, hsv = self._make_bar(100, 100, rows[1])
-            print(f"Bar {index + 1}")
-            print(f"  RGB values: {rgb}")
-            print(f"  HSV values: {hsv}")
-            print(f"  Hex values: {self._hextriplet(rgb)}")
+            # print(f"Bar {index + 1}")
+            # print(f"  RGB values: {rgb}")
+            # print(f"  HSV values: {hsv}")
+            # print(f"  Hex values: {self._hextriplet(rgb)}")
             hsv_values.append(hsv)
             bars.append(bar)
             hexs.append(self._hextriplet(rgb))

@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 import requests
 from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
+import base64
 
 load_dotenv()
 
@@ -30,6 +31,23 @@ class SpotifyController:
             raise SystemExit(err)
         return response.json().get("access_token")
 
+    def refresh_access_token(self, refresh_token):
+        auth_url = "https://accounts.spotify.com/api/token"
+        headers = {
+            "Authorization": "Basic "
+            + base64.b64encode(
+                (self.client_id + ":" + self.client_secret).encode()
+            ).decode(),
+            "Content-Type": "application/x-www-form-urlencoded",
+        }
+        data = {"grant_type": "refresh_token", "refresh_token": refresh_token}
+        try:
+            response = requests.post(auth_url, headers=headers, data=data)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            raise SystemExit(err)
+        return response.json().get("access_token")
+
     def get_current_play(self, token: str) -> Dict[str, Any]:
         url = f"{self._base_url}/v1/me/player"
         headers = {
@@ -47,6 +65,31 @@ class SpotifyController:
         current_play["track_id"] = response.json().get("item").get("id")
         return current_play
 
+    def save_album(
+        self, tokens: Dict[str, Any], album_id: str
+    ) -> Dict[str, Any]:
+        url = f"{self._base_url}/v1/me/albums"
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {tokens['access_token']}",
+        }
+        data = {"ids": [album_id]}
+
+        try:
+            response = requests.put(url, headers=headers, json=data)
+            if response.status_code == 401:
+                print("refreshing tokens...")
+                tokens["access_token"] = self.refresh_access_token(
+                    tokens["refresh_token"]
+                )
+                return self.save_album(tokens, album_id)
+            response.raise_for_status()
+
+            return {"status": "success", "message": "Album saved successfully"}
+        except requests.exceptions.HTTPError as err:
+            raise err
+
     def get_user_info(self, token: str) -> Dict[str, Any]:
         url = f"{self._base_url}/v1/me"
         headers = {
@@ -60,11 +103,15 @@ class SpotifyController:
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
         current_user = {}
-        current_user["id"] = int(response.json().get("id"))
+        current_user["id"] = response.json().get("id")
         current_user["display_name"] = response.json().get("display_name")
         current_user["email"] = response.json().get("email")
         current_user["country"] = response.json().get("country")
-        current_user["image_url"] = response.json().get("images")[0].get("url")
+        current_user["image_url"] = (
+            response.json().get("images")[-1].get("url")
+            if response.json().get("images")
+            else None
+        )
         return current_user
 
     def get_recently_played(
@@ -244,15 +291,71 @@ class SpotifyController:
                 {
                     "spotify_id": artist.get("id"),
                     "genres": " - ".join(artist.get("genres")),
-                    "image_url": artist.get("images")[0].get("url")
-                    if artist.get("images")
-                    else None,
+                    "image_url": (
+                        artist.get("images")[0].get("url")
+                        if artist.get("images")
+                        else None
+                    ),
                     "name": artist.get("name"),
                     "followers": artist.get("followers").get("total"),
                     "popularity": artist.get("popularity"),
                 }
             )
         results["artists"] = artists
+        return results
+
+    def get_user_saved_albums_limit(
+        self,
+        tokens: Dict[str, Any],
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Dict[str, Any]:
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {tokens['access_token']}",
+        }
+        params = {"limit": limit, "offset": offset}
+        url = f"{self._base_url}/v1/me/albums"
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            if response.status_code == 401:
+                tokens["access_token"] = self.refresh_access_token(
+                    tokens["refresh_token"]
+                )
+                return self.get_user_saved_albums_limit(tokens, limit, offset)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            print(f"Error get user_saved_album: {err}")
+            raise SystemExit(err)
+        results = {}
+        albums = []
+        if response.json().get("items"):
+            for item in response.json().get("items"):
+                single_album = {
+                    "spotify_id": item.get("album").get("id"),
+                    "type": item.get("album").get("album_type"),
+                    "artist_spotify_id": item.get("album")
+                    .get("artists")[0]
+                    .get("id"),
+                    "artist_name": item.get("album")
+                    .get("artists")[0]
+                    .get("name"),
+                    "upc_id": item.get("album").get("external_ids").get("upc"),
+                    "label": item.get("album").get("label"),
+                    "name": item.get("album").get("name"),
+                    "release_date": item.get("album").get("release_date"),
+                    "image_url": item.get("album").get("images")[0].get("url"),
+                    "genres": " - ".join(item.get("album").get("genres")),
+                    "total_tracks": item.get("album").get("total_tracks"),
+                    "popularity": item.get("album").get("popularity"),
+                    "created_at": datetime.now(),
+                    "added_at": item.get("added_at"),
+                }
+
+                albums.append(single_album)
+        results["albums"] = albums
+        results["total_albums"] = response.json().get("total")
         return results
 
     def get_user_saved_albums(
@@ -284,6 +387,9 @@ class SpotifyController:
                             "artist_spotify_id": item.get("album")
                             .get("artists")[0]
                             .get("id"),
+                            "artist_name": item.get("album")
+                            .get("artists")[0]
+                            .get("name"),
                             "upc_id": item.get("album")
                             .get("external_ids")
                             .get("upc"),
@@ -321,6 +427,9 @@ class SpotifyController:
                     "artist_spotify_id": item.get("album")
                     .get("artists")[0]
                     .get("id"),
+                    "artist_name": item.get("album")
+                    .get("artists")[0]
+                    .get("name"),
                     "upc_id": item.get("album").get("external_ids").get("upc"),
                     "label": item.get("album").get("label"),
                     "name": item.get("album").get("name"),

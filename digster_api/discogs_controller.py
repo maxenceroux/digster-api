@@ -21,9 +21,7 @@ class DiscogsController:
         for album in albums:
             print(album)
             try:
-                query = (
-                    f'{album["album_name"].replace(" ", "+")}+{album["artist_name"].replace(" ", "+")}'
-                )
+                query = f'{album["album_name"].replace(" ", "+")}+{album["artist_name"].replace(" ", "+")}'
                 search = self.client.search(query, type="release")
                 styles = search[0].styles
                 genres = search[0].genres
@@ -42,3 +40,17 @@ class DiscogsController:
                 pass
         print(results)
         return results
+
+    def get_album_genre(self, album_name: str, artist_name: str):
+        try:
+            query = f'{album_name.replace(" ", "+")}+{artist_name.replace(" ", "+")}'
+            search = self.client.search(query, type="release")
+            styles = search[0].styles
+            genres = search[0].genres
+            if styles is None:
+                styles = ""
+            if genres is None:
+                genres = ""
+            return {"genres": genres, "styles": styles}
+        except:
+            return {"genres": None, "styles": None}

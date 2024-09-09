@@ -9,7 +9,7 @@ test-cov-local:
 	pytest --cov=digster_api tests -vv --cov-report html
 
 migrate-db:
-	alembic revision --autogenerate -m $(msg)
+	alembic revision --autogenerate
 	alembic upgrade head
 
 start-dev-docker:
@@ -19,7 +19,7 @@ start-test-docker:
 	docker-compose -f docker-compose.yml -f docker-compose.test.yml up
 
 start-worker-genre:
-	celery worker --app=digster_api.worker.celery_genre -n "worker_genre" --loglevel=info -c 4
+	celery worker --app=digster_api.worker.celery_genre -n "worker_genre" --loglevel=info -c 1
 
 start-worker-color:
-	celery worker --app=digster_api.worker.celery_color -n "worker_color" --loglevel=info -c 4
+	celery worker --app=digster_api.worker.celery_color -n "worker_color" --loglevel=info -c 1
