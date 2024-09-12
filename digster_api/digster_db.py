@@ -279,6 +279,17 @@ class DigsterDB:
         self.session.execute(stmt)
         self.session.commit()
 
+    def follows(self, follower_id: str, following_id: str):
+        follow = (
+            self.session.query(Follow)
+            .filter(Follow.follower_id == follower_id)
+            .filter(Follow.following_id == following_id)
+            .first()
+        )
+        if follow:
+            return True
+        return False
+
     def update_follow(self, follow: Dict[str, Any]):
         stmt = (
             update(Follow)

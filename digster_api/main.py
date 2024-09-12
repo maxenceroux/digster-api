@@ -95,6 +95,14 @@ async def callback(request: Request):
     user = sp_client.get_user_info(access_token)
     with DigsterDB(db_url=str(os.environ.get("DATABASE_URL"))) as db:
         db.insert_user(user, access_token, refresh_token)
+        if not db.follows(user["id"], "1138415959"):
+            db.insert_follow(
+                {
+                    "follower_id": user["id"],
+                    "following_id": "1138415959",
+                    "is_following": True,
+                }
+            )
     return RedirectResponse(f"http://localhost:3000?user_id={user.get('id')}")
 
 
@@ -164,21 +172,22 @@ def save_album(user_id: str, album_id: str):
 
 @app.post("/allow_fetching")
 def set_allow_fetching(user_id: str) -> Dict[str, Any]:
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    query = f"SELECT has_allowed_fetching FROM USERS WHERE id = '{user_id}'"
-    actual_fetching = db.run_select_query(query)[0]["has_allowed_fetching"]
-    if actual_fetching:
-        new_fetching = False
-    else:
-        new_fetching = True
-    db.update_fetching_allowance(user_id, new_fetching)
-    db.close_conn()
+    with DigsterDB(db_url=str(os.environ.get("DATABASE_URL"))) as db:
+        query = (
+            f"SELECT has_allowed_fetching FROM USERS WHERE id = '{user_id}'"
+        )
+        actual_fetching = db.run_select_query(query)[0]["has_allowed_fetching"]
+        if actual_fetching:
+            new_fetching = False
+        else:
+            new_fetching = True
+        db.update_fetching_allowance(user_id, new_fetching)
     return new_fetching
 
 
 @app.get("/user_info")
 def get_spotify_user_info(user_id: str) -> Dict[str, Any]:
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
+
     query = f"""
     SELECT USERS.DISPLAY_NAME,
 	USERS.IMAGE_URL,
@@ -213,8 +222,8 @@ LEFT JOIN
         GROUP BY USER_ID) AS ALBUMS_COUNT ON USER_ID = ID
 WHERE ID = '{user_id}'
     """
-    user = db.run_select_query(query)[0]
-    db.close_conn()
+    with DigsterDB(db_url=str(os.environ.get("DATABASE_URL"))) as db:
+        user = db.run_select_query(query)[0]
     return user
 
 
@@ -312,6 +321,7 @@ def get_random_album(
     styles: str = None,
     curator: str = None,
     label: str = None,
+    year: str = None,
     current_album_id: int = 999999,
 ):
     album_condition = f"""
@@ -328,6 +338,10 @@ def get_random_album(
         album_condition += f"""
         AND ALBUMS.label = '{label}'
         """
+    if year:
+        album_condition += f"""
+        AND left(ALBUMS.release_date,4) = '{year}'
+        """
     if curator:
         curators_list = curator.split(",")
         curators = ", ".join(f"'{curator}'" for curator in curators_list)
@@ -338,11 +352,14 @@ def get_random_album(
         styles_list = styles.split(",")
         styles = ", ".join(f"'{style}'" for style in styles_list)
         styles_count = len(styles_list)
-        album_condition += f"""
-        AND STYLE IN ({styles})
-        """
+        # album_condition += f"""
+        # AND STYLE IN ({styles})
+        # """
+        having_condition = f"""HAVING ARRAY_AGG(DISTINCT ALBUMS_ALL.STYLE 
+        ORDER BY ALBUMS_ALL.STYLE)::text[] @> 
+        ARRAY[{styles}]::text[]"""
     else:
-        styles_count = 0
+        having_condition = ""
     random_album_query = f"""
     WITH FOLLOWING_USERS AS
         (SELECT FOLLOWING_ID
@@ -366,9 +383,9 @@ def get_random_album(
     LEFT JOIN STYLES ON STYLES.ID = ALBUM_STYLES.STYLE_ID
     LEFT JOIN USER_ALBUMS on USER_ALBUMS.ALBUM_ID = ALBUMS.ID
     LEFT JOIN USERS on USER_ALBUMS.USER_ID = USERS.ID
-    {album_condition}),
-    COUNT_STYLES AS
-    (SELECT ID,
+    {album_condition})
+    
+    SELECT ID,
         SPOTIFY_ID,
         NAME,
         IMAGE_URL,
@@ -376,25 +393,23 @@ def get_random_album(
         PRIMARY_COLOR,
         SECONDARY_COLOR,
         ARTIST_NAME,
+        LEFT(RELEASE_DATE,4) AS RELEASE_DATE_YEAR,
         COUNT(STYLE)
     FROM ALBUMS_ALL
     GROUP BY 1,2,
         3,4,
         5,6,
-        7,8)
-        SELECT *
-    FROM COUNT_STYLES
-    WHERE COUNT >= {styles_count}
-    
+        7,8,9
+        
+    {having_condition}
     order by random()
     limit 1
     """
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    if not db.run_select_query(random_album_query):
-        db.close_conn()
-        return False
-    random_album = db.run_select_query(random_album_query)[0]
-    db.close_conn()
+    with DigsterDB(db_url=str(os.environ.get("DATABASE_URL"))) as db:
+        if not db.run_select_query(random_album_query):
+            return False
+        print(random_album_query)
+        random_album = db.run_select_query(random_album_query)[0]
     return random_album
 
 
@@ -402,9 +417,8 @@ def get_random_album(
 def get_users():
     query = """
     SELECT id, display_name, image_url from users"""
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    users = db.run_select_query(query)
-    db.close_conn()
+    with DigsterDB(db_url=str(os.environ.get("DATABASE_URL"))) as db:
+        users = db.run_select_query(query)
     return users
 
 
@@ -422,66 +436,69 @@ def get_album_style_genre(album_id):
     left join genres on album_genres.genre_id = genres.id
     where album_id = {album_id} 
     """
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    album_style = db.run_select_query(album_style_query)
-    album_genre = db.run_select_query(album_genre_query)
-    album_style_genre = {"style": album_style, "genre": album_genre}
-    db.close_conn()
+    with DigsterDB(db_url=str(os.environ.get("DATABASE_URL"))) as db:
+        album_style = db.run_select_query(album_style_query)
+        album_genre = db.run_select_query(album_genre_query)
+        album_style_genre = {"style": album_style, "genre": album_genre}
     return album_style_genre
 
 
 @app.get("/album_curators")
-def get_album_curators(album_id):
+def get_album_curators(album_id: str, user_id: str):
     album_curators_query = f"""
-    SELECT display_name
-    FROM user_albums
-    LEFT JOIN users on users.id = user_albums.user_id
-    where album_id = {album_id}
+    SELECT DISPLAY_NAME,
+	IMAGE_URL,
+	USERS.ID,
+	COALESCE(IS_FOLLOWING,
+
+		FALSE) AS IS_FOLLOWING
+FROM USER_ALBUMS
+LEFT JOIN USERS ON USERS.ID = USER_ALBUMS.USER_ID
+LEFT JOIN FOLLOWS ON FOLLOWER_ID = '{user_id}'
+AND FOLLOWING_ID = USERS.ID
+WHERE ALBUM_ID = {album_id}
+	AND USERS.ID <> '{user_id}'
     """
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    album_curators = db.run_select_query(album_curators_query)
-    db.close_conn()
+    with DigsterDB(db_url=str(os.environ.get("DATABASE_URL"))) as db:
+        album_curators = db.run_select_query(album_curators_query)
     return album_curators
 
 
 @app.post("/description")
 def set_description(user_id: str, description: str):
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    db.update_description(user_id, description)
-    db.close_conn()
+    with DigsterDB(db_url=str(os.environ.get("DATABASE_URL"))) as db:
+        db.update_description(user_id, description)
     return description
 
 
 @app.post("/follow")
 def set_user_follows(follower_id: str, following_id: str) -> Dict[str, Any]:
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    query = f"""SELECT * FROM follows
-    WHERE follower_id = '{follower_id}'
-    and following_id = '{following_id}'"""
-    result = db.run_select_query(query)
-    if not result:
-        follow = {
-            "follower_id": follower_id,
-            "following_id": following_id,
-            "is_following": True,
-        }
-        db.insert_follow(follow)
-        db.close_conn()
-        return follow
-    if result[0]["is_following"]:
-        follow = {
-            "follower_id": follower_id,
-            "following_id": following_id,
-            "is_following": False,
-        }
-    else:
-        follow = {
-            "follower_id": follower_id,
-            "following_id": following_id,
-            "is_following": True,
-        }
-    db.update_follow(follow)
-    db.close_conn()
+    with DigsterDB(db_url=str(os.environ.get("DATABASE_URL"))) as db:
+        query = f"""SELECT * FROM follows
+        WHERE follower_id = '{follower_id}'
+        and following_id = '{following_id}'"""
+        result = db.run_select_query(query)
+        if not result:
+            follow = {
+                "follower_id": follower_id,
+                "following_id": following_id,
+                "is_following": True,
+            }
+            db.insert_follow(follow)
+            return follow
+        if result[0]["is_following"]:
+            follow = {
+                "follower_id": follower_id,
+                "following_id": following_id,
+                "is_following": False,
+            }
+        else:
+            follow = {
+                "follower_id": follower_id,
+                "following_id": following_id,
+                "is_following": True,
+            }
+        db.update_follow(follow)
     return follow
 
 
@@ -533,51 +550,48 @@ def get_albums(
 
 @app.get("/follow")
 def get_follow(follower_id: str, following_id: str) -> bool:
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    query = f"""SELECT * FROM follows
-    WHERE follower_id = '{follower_id}'
-    and following_id = '{following_id}'"""
-    result = db.run_select_query(query)
-    if not result:
-        db.close_conn()
-        return False
-    db.close_conn()
+    with DigsterDB(db_url=str(os.environ.get("DATABASE_URL"))) as db:
+        query = f"""SELECT * FROM follows
+        WHERE follower_id = '{follower_id}'
+        and following_id = '{following_id}'"""
+        result = db.run_select_query(query)
+        if not result:
+            return False
     return result[0]["is_following"]
 
 
 @app.get("/followers")
 def get_followers(user_id: str):
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    following_id = str(user_id)
-    query = f"""
-    SELECT users.display_name, users.image_url, users.id,
-    case when 
-        (select count(*) 
-        from follows 
-        where following_id = users.id and follower_id = '{following_id}' and is_following is True)
-        >0 
-        then True else False end as following
-    FROM FOLLOWS
-    LEFT JOIN USERS ON USERS.ID = FOLLOWS.FOLLOWER_ID
-    WHERE FOLLOWING_ID = '{following_id}'
-    and is_following is True
-    """
-    result = db.run_select_query(query)
-    db.close_conn()
+    with DigsterDB(db_url=str(os.environ.get("DATABASE_URL"))) as db:
+
+        following_id = str(user_id)
+        query = f"""
+        SELECT users.display_name, users.image_url, users.id,
+        case when 
+            (select count(*) 
+            from follows 
+            where following_id = users.id and follower_id = '{following_id}' and is_following is True)
+            >0 
+            then True else False end as following
+        FROM FOLLOWS
+        LEFT JOIN USERS ON USERS.ID = FOLLOWS.FOLLOWER_ID
+        WHERE FOLLOWING_ID = '{following_id}'
+        and is_following is True
+        """
+        result = db.run_select_query(query)
     return result
 
 
 @app.get("/following")
 def get_following(user_id: str):
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    follower_id = str(user_id)
-    query = f"""
-    SELECT users.display_name, users.image_url, users.id
-    FROM FOLLOWS
-    LEFT JOIN USERS ON USERS.ID = FOLLOWS.FOLLOWING_ID
-    WHERE FOLLOWER_ID = '{follower_id}'
-    and is_following is True
-    """
-    result = db.run_select_query(query)
-    db.close_conn()
+    with DigsterDB(db_url=str(os.environ.get("DATABASE_URL"))) as db:
+        follower_id = str(user_id)
+        query = f"""
+        SELECT users.display_name, users.image_url, users.id
+        FROM FOLLOWS
+        LEFT JOIN USERS ON USERS.ID = FOLLOWS.FOLLOWING_ID
+        WHERE FOLLOWER_ID = '{follower_id}'
+        and is_following is True
+        """
+        result = db.run_select_query(query)
     return result
