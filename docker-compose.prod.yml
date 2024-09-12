@@ -1,0 +1,69 @@
+version: '3.7'
+services:
+  chrome:
+    image: selenium/standalone-chrome:latest
+    hostname: chrome
+    ports:
+      - 4444:4444
+
+  web:
+    build:
+      context: .
+    ports:
+      - 8001:8000
+    env_file:
+      - ./digster_api/prod.env
+    depends_on:
+      - chrome
+      - initdb
+    volumes:
+      - ./digster_api/alembic/versions:/app/digster_api/alembic/versions
+
+  initdb:
+    build:
+      context: .
+    env_file:
+      - ./digster_api/prod.env
+    depends_on:
+      - postgres
+    volumes:
+      - ./digster_api/alembic/versions:/app/digster_api/alembic/versions
+    command: ./docker-entrypoint-initdb.sh
+
+  postgres:
+    container_name: postgres_digster
+    image: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      PGDATA: /data/postgres
+    volumes:
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres-digster:/data/postgres
+    ports:
+      - "5433:5432"
+
+  worker-genre:
+    build:
+      context: .
+    env_file:
+      - ./digster_api/prod.env
+    depends_on:
+      - chrome
+      - initdb
+      - web
+      - redis
+  worker-color:
+    build:
+      context: .
+    env_file:
+      - ./digster_api/prod.env
+    depends_on:
+      - chrome
+      - initdb
+      - web
+      - redis
+  redis:
+      image: redis:6-alpine
+volumes:
+  postgres-digster: null
