@@ -33,4 +33,3 @@ make migrate-db
 - Review typings on `spotify_controller.py`
 - Integration tests
 - [multiple environments compose files: dev - ci - prod](https://docs.docker.com/compose/extends/#different-environments)
-- Remove spotify creds from SeleniumScrapper class instanciator

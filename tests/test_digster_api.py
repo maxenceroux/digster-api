@@ -5,7 +5,6 @@ import requests
 
 from digster_api import __version__
 from digster_api.main import root
-from digster_api.selenium_scrapper import SeleniumScrapper
 from digster_api.spotify_controller import SpotifyController
 
 
@@ -48,29 +47,8 @@ def test_spotify_get_unauth_token_failure():
         spotify_client.get_unauth_token()
     assert (
         "400 Client Error: Bad Request for url:"
-        " https://accounts.spotify.com/api/token"
-        in str(excinfo)
+        " https://accounts.spotify.com/api/token" in str(excinfo)
     )
-
-
-def test_selenium_scrapper():
-    scrapper = SeleniumScrapper(
-        spotify_user=os.environ.get("SPOTIFY_USER"),
-        spotify_password=os.environ.get("SPOTIFY_PWD"),
-        chromedriver="local",
-    )
-    assert scrapper.chromedriver == "local"
-
-
-def test_selenium_get_spotify_token():
-    scrapper = SeleniumScrapper(
-        spotify_user=os.environ.get("SPOTIFY_USER"),
-        spotify_password=os.environ.get("SPOTIFY_PWD"),
-        chromedriver="local",
-    )
-    token = scrapper.get_spotify_token()
-    assert isinstance(token, str)
-    assert len(token) == 278
 
 
 def test_spotify_get_current_play_success(

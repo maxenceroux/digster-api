@@ -10,7 +10,6 @@ import logging
 from digster_api.digster_db import DigsterDB
 from digster_api.dominant_color_finder import ColorFinder
 from digster_api.models import Album, Artist, Genre, Style, UserAlbum
-from digster_api.selenium_scrapper import SeleniumScrapper
 from digster_api.discogs_controller import DiscogsController
 from digster_api.spotify_controller import SpotifyController
 

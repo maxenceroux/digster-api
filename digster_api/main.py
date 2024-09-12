@@ -14,7 +14,7 @@ from digster_api.models import (
     Listen,
     Track,
 )
-from digster_api.selenium_scrapper import SeleniumScrapper
+
 from digster_api.spotify_controller import SpotifyController
 from digster_api.bg_tasks import fetch_albums_data
 from digster_api.mailjet_client import MailJetClient
@@ -227,36 +227,6 @@ WHERE ID = '{user_id}'
     return user
 
 
-@app.post("/recently_played_tracks/")
-def get_recently_played_tracks(after: int, before: int) -> List[Listen]:
-    scrapper = SeleniumScrapper(
-        str(os.environ.get("SPOTIFY_USER")),
-        str(os.environ.get("SPOTIFY_PWD")),
-        str(os.environ.get("CHROME_DRIVER")),
-    )
-    token = scrapper.get_spotify_token()
-    spotify_client = SpotifyController(
-        client_id=str(os.environ.get("SPOTIFY_CLIENT_ID")),
-        client_secret=str(os.environ.get("SPOTIFY_CLIENT_SECRET")),
-    )
-    user_id = spotify_client.get_user_info(token).get("id")
-    tracks = spotify_client.get_recently_played(token, after=after)
-    listens = []
-    is_before = True
-    while tracks.get("next_url") and is_before:
-        for item in tracks["recently_played"]:
-            if int(item.get("listened_at").timestamp() * 1000) > before:
-                is_before = False
-                break
-            item.update({"user_id": user_id})
-            listens.append(Listen(**item))
-        next_url = tracks.get("next_url")
-        tracks = spotify_client.get_recently_played(token, url=next_url)
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    db.insert_listens(listens)
-    return listens
-
-
 @app.get("/saved_albums")
 def get_saved_albums(
     user_id: str,
@@ -264,55 +234,6 @@ def get_saved_albums(
 ):
     background_task.add_task(fetch_albums_data, user_id)
     return {"details": "albums are fetching", "user_id": user_id}
-
-
-@app.get("/tracks_info")
-def get_tracks_info() -> Sequence[Optional[Track]]:
-    db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-    untracked_tracks_query = """
-    SELECT DISTINCT TRACK_ID
-    FROM LISTENS
-    LEFT JOIN TRACKS ON TRACKS.SPOTIFY_ID = LISTENS.TRACK_ID
-    WHERE TRACKS.SPOTIFY_ID IS NULL
-    """
-    untracked_tracks_dict = db.run_select_query(untracked_tracks_query)
-    untracked_tracks = [
-        result_tuple["track_id"] for result_tuple in untracked_tracks_dict
-    ]
-    if not untracked_tracks:
-        return []
-    scrapper = SeleniumScrapper(
-        str(os.environ.get("SPOTIFY_USER")),
-        str(os.environ.get("SPOTIFY_PWD")),
-        str(os.environ.get("CHROME_DRIVER")),
-    )
-    token = scrapper.get_spotify_token()
-    spotify_client = SpotifyController(
-        client_id=str(os.environ.get("SPOTIFY_CLIENT_ID")),
-        client_secret=str(os.environ.get("SPOTIFY_CLIENT_SECRET")),
-    )
-    for i in range(0, len(untracked_tracks), 49):
-        accepted_len_untracked_tracks = untracked_tracks[i : i + 49]
-        tracks_info = spotify_client.get_tracks_info(
-            token=token, track_ids=accepted_len_untracked_tracks
-        )
-        tracks_features = spotify_client.get_tracks_attributes(
-            token=token, track_ids=accepted_len_untracked_tracks
-        )
-        tracks_dict = [
-            {**features, **infos}
-            for features, infos in zip(
-                tracks_info["tracks_info"],
-                tracks_features["audio_features"],
-            )
-        ]
-        tracks = []
-        for track in tracks_dict:
-            track.update({"created_at": datetime.now()})
-            tracks.append(Track(**track))
-        db = DigsterDB(db_url=str(os.environ.get("DATABASE_URL")))
-        db.insert_tracks(tracks)
-    return tracks
 
 
 @app.get("/random_album")
