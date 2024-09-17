@@ -25,6 +25,9 @@ import requests
 
 origins = [
     "http://localhost:3000",
+    "http://localhost:3003",
+    "https://fck-algos.com",
+    "http://192.168.0.10:3005",
 ]
 app = FastAPI()
 
@@ -38,7 +41,7 @@ app.add_middleware(
 
 CLIENT_ID = "b45b68c4c7a0421589605adf1e1a7626"
 CLIENT_SECRET = "9f629374960a45aa8268eab3a9dbe18b"
-REDIRECT_URI = "http://localhost:8000/callback"
+REDIRECT_URI = "https://fck-algos.com/callback"
 AUTH_URL = "https://accounts.spotify.com/authorize"
 TOKEN_URL = "https://accounts.spotify.com/api/token"
 SCOPE = ["user-library-read", "user-library-modify"]
@@ -103,7 +106,7 @@ async def callback(request: Request):
                     "is_following": True,
                 }
             )
-    return RedirectResponse(f"http://localhost:3000?user_id={user.get('id')}")
+    return RedirectResponse(f"https://fck-algos.com?user_id={user.get('id')}")
 
 
 @app.get("/")
@@ -266,9 +269,12 @@ def get_random_album(
     if curator:
         curators_list = curator.split(",")
         curators = ", ".join(f"'{curator}'" for curator in curators_list)
-        album_condition += f"""
-        AND USERS.DISPLAY_NAME in ({curators})
-        """
+        curator_condition = f"""HAVING ARRAY_AGG(DISTINCT ALBUMS_ALL.DISPLAY_NAME 
+        ORDER BY ALBUMS_ALL.DISPLAY_NAME)::text[] @> 
+        ARRAY[{curators}]::text[]"""
+    else:
+        curator_condition=""
+        
     if styles:
         styles_list = styles.split(",")
         styles = ", ".join(f"'{style}'" for style in styles_list)
@@ -297,7 +303,9 @@ def get_random_album(
         ALBUMS_ALL as (
     SELECT ALBUMS.*,
         ARTISTS.NAME ARTIST_NAME,
-        STYLES.STYLE
+        STYLES.STYLE,
+        USERS.DISPLAY_NAME
+
     FROM ALBUMS
     LEFT JOIN ARTISTS ON ARTISTS.ID = ALBUMS.ARTIST_ID
     LEFT JOIN ALBUM_STYLES ON ALBUMS.ID = ALBUM_STYLES.ALBUM_ID
@@ -323,13 +331,13 @@ def get_random_album(
         7,8,9
         
     {having_condition}
+    {curator_condition}
     order by random()
     limit 1
     """
     with DigsterDB(db_url=str(os.environ.get("DATABASE_URL"))) as db:
         if not db.run_select_query(random_album_query):
             return False
-        print(random_album_query)
         random_album = db.run_select_query(random_album_query)[0]
     return random_album
 
@@ -368,17 +376,19 @@ def get_album_style_genre(album_id):
 def get_album_curators(album_id: str, user_id: str):
     album_curators_query = f"""
     SELECT DISPLAY_NAME,
-	IMAGE_URL,
-	USERS.ID,
-	COALESCE(IS_FOLLOWING,
-
-		FALSE) AS IS_FOLLOWING
+       IMAGE_URL,
+       USERS.ID,
+       CASE
+           WHEN USERS.ID = '1138415959' THEN TRUE
+           ELSE COALESCE(IS_FOLLOWING, FALSE)
+       END AS IS_FOLLOWING
 FROM USER_ALBUMS
 LEFT JOIN USERS ON USERS.ID = USER_ALBUMS.USER_ID
 LEFT JOIN FOLLOWS ON FOLLOWER_ID = '{user_id}'
 AND FOLLOWING_ID = USERS.ID
 WHERE ALBUM_ID = {album_id}
-	AND USERS.ID <> '{user_id}'
+AND (USERS.ID <> '{user_id}' OR '{user_id}' = '1138415959')
+
     """
     with DigsterDB(db_url=str(os.environ.get("DATABASE_URL"))) as db:
         album_curators = db.run_select_query(album_curators_query)

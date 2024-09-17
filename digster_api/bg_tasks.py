@@ -53,3 +53,4 @@ def fetch_albums_data(user_id: str):
             offset += limit
         fetch_albums_genres_worker.delay()
         fetch_albums_color_worker.delay()
+        print("done fetching albums - fetching genres and colors")

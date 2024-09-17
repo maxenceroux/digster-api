@@ -18,6 +18,9 @@ start-dev-docker:
 start-test-docker:
 	docker-compose -f docker-compose.yml -f docker-compose.test.yml up
 
+start-prod-docker:
+	docker compose -f docker-compose.prod.yml  up
+
 start-worker-genre:
 	celery worker --app=digster_api.worker.celery_genre -n "worker_genre" --loglevel=info -c 1
 

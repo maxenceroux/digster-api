@@ -10,7 +10,7 @@ services:
     env_file:
       - ./digster_api/prod.env
     depends_on:
-      - chrome
+      
       - initdb
     volumes:
       - ./digster_api/alembic/versions:/app/digster_api/alembic/versions
@@ -42,23 +42,29 @@ services:
   worker-genre:
     build:
       context: .
+    entrypoint: ./docker-entrypoint-worker-genre.sh
     env_file:
       - ./digster_api/prod.env
+    volumes:
+      - ./digster_api:/app/digster_api/
     depends_on:
-      - chrome
       - initdb
       - web
       - redis
+
   worker-color:
     build:
       context: .
+    entrypoint: ./docker-entrypoint-worker-color.sh
     env_file:
       - ./digster_api/prod.env
+    volumes:
+      - ./digster_api:/app/digster_api/
     depends_on:
-      - chrome
       - initdb
       - web
       - redis
+
   redis:
       image: redis:6-alpine
 volumes:

@@ -16,16 +16,16 @@ from digster_api.spotify_controller import SpotifyController
 celery_color = Celery(__name__)
 celery_genre = Celery(__name__)
 celery_color.conf.broker_url = os.environ.get(
-    "CELERY_BROKER_URL", "redis://localhost:6379"
+    "CELERY_BROKER_URL", "redis://redis:6379"
 )
 celery_color.conf.result_backend = os.environ.get(
-    "CELERY_RESULT_BACKEND", "redis://localhost:6379"
+    "CELERY_RESULT_BACKEND", "redis://redis:6379"
 )
 celery_genre.conf.broker_url = os.environ.get(
-    "CELERY_BROKER_URL", "redis://localhost:6379"
+    "CELERY_BROKER_URL", "redis://redis:6379"
 )
 celery_genre.conf.result_backend = os.environ.get(
-    "CELERY_RESULT_BACKEND", "redis://localhost:6379"
+    "CELERY_RESULT_BACKEND", "redis://redis:6379"
 )
 
 
