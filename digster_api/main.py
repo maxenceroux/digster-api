@@ -335,8 +335,8 @@ def get_random_album(
         5,6,
         7,8,9
         
-    {having_condition}
     {curator_condition}
+    {having_condition}
     order by random()
     limit 1
     """
