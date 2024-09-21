@@ -61,6 +61,16 @@ class DigsterDB:
     def get_user_info(self, user_id: str):
         return self.session.query(User).filter(User.id == user_id).first()
 
+    def get_artist_id_by_album_upc(self, album_upc_id: str):
+        artist_id = (
+            self.session.query(Album.artist_id)
+            .filter(Album.upc_id == album_upc_id)
+            .first()
+        )
+        if artist_id:
+            return artist_id
+        return None
+
     def insert_user(self, user, access_token, refresh_token):
         db_user = (
             self.session.query(User).filter(User.id == user.get("id")).first()
