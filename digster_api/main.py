@@ -282,9 +282,14 @@ def get_random_album(
         # album_condition += f"""
         # AND STYLE IN ({styles})
         # """
-        having_condition = f"""HAVING ARRAY_AGG(DISTINCT ALBUMS_ALL.STYLE 
-        ORDER BY ALBUMS_ALL.STYLE)::text[] @> 
-        ARRAY[{styles}]::text[]"""
+        if curator_condition == "":
+            having_condition = f"""HAVING ARRAY_AGG(DISTINCT ALBUMS_ALL.STYLE 
+            ORDER BY ALBUMS_ALL.STYLE)::text[] @> 
+            ARRAY[{styles}]::text[]"""
+        else:
+            having_condition = f"""AND ARRAY_AGG(DISTINCT ALBUMS_ALL.STYLE 
+            ORDER BY ALBUMS_ALL.STYLE)::text[] @> 
+            ARRAY[{styles}]::text[]"""
     else:
         having_condition = ""
     random_album_query = f"""
